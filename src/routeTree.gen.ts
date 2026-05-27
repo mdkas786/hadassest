@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as ReferralRouteImport } from './routes/referral'
 import { Route as PayRouteImport } from './routes/pay'
 import { Route as MarketsRouteImport } from './routes/markets'
 import { Route as LoginRouteImport } from './routes/login'
@@ -22,6 +23,11 @@ import { Route as AdminLoginRouteImport } from './routes/admin.login'
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReferralRoute = ReferralRouteImport.update({
+  id: '/referral',
+  path: '/referral',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PayRoute = PayRouteImport.update({
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/markets': typeof MarketsRouteWithChildren
   '/pay': typeof PayRoute
+  '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
   '/admin/login': typeof AdminLoginRoute
   '/markets/$coinId': typeof MarketsCoinIdRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/markets': typeof MarketsRouteWithChildren
   '/pay': typeof PayRoute
+  '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
   '/admin/login': typeof AdminLoginRoute
   '/markets/$coinId': typeof MarketsCoinIdRoute
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/markets': typeof MarketsRouteWithChildren
   '/pay': typeof PayRoute
+  '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
   '/admin/login': typeof AdminLoginRoute
   '/markets/$coinId': typeof MarketsCoinIdRoute
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/markets'
     | '/pay'
+    | '/referral'
     | '/register'
     | '/admin/login'
     | '/markets/$coinId'
@@ -118,6 +128,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/markets'
     | '/pay'
+    | '/referral'
     | '/register'
     | '/admin/login'
     | '/markets/$coinId'
@@ -129,6 +140,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/markets'
     | '/pay'
+    | '/referral'
     | '/register'
     | '/admin/login'
     | '/markets/$coinId'
@@ -141,6 +153,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MarketsRoute: typeof MarketsRouteWithChildren
   PayRoute: typeof PayRoute
+  ReferralRoute: typeof ReferralRoute
   RegisterRoute: typeof RegisterRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -153,6 +166,13 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/referral': {
+      id: '/referral'
+      path: '/referral'
+      fullPath: '/referral'
+      preLoaderRoute: typeof ReferralRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pay': {
@@ -231,6 +251,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MarketsRoute: MarketsRouteWithChildren,
   PayRoute: PayRoute,
+  ReferralRoute: ReferralRoute,
   RegisterRoute: RegisterRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminIndexRoute: AdminIndexRoute,

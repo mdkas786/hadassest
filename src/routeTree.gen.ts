@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as MarketsCoinIdRouteImport } from './routes/markets.$coinId'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 
 const RegisterRoute = RegisterRouteImport.update({
@@ -47,6 +48,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MarketsCoinIdRoute = MarketsCoinIdRouteImport.update({
+  id: '/$coinId',
+  path: '/$coinId',
+  getParentRoute: () => MarketsRoute,
+} as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/admin/login',
   path: '/admin/login',
@@ -57,18 +63,20 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/markets': typeof MarketsRoute
+  '/markets': typeof MarketsRouteWithChildren
   '/register': typeof RegisterRoute
   '/admin/login': typeof AdminLoginRoute
+  '/markets/$coinId': typeof MarketsCoinIdRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/markets': typeof MarketsRoute
+  '/markets': typeof MarketsRouteWithChildren
   '/register': typeof RegisterRoute
   '/admin/login': typeof AdminLoginRoute
+  '/markets/$coinId': typeof MarketsCoinIdRoute
   '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
@@ -76,9 +84,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/markets': typeof MarketsRoute
+  '/markets': typeof MarketsRouteWithChildren
   '/register': typeof RegisterRoute
   '/admin/login': typeof AdminLoginRoute
+  '/markets/$coinId': typeof MarketsCoinIdRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/markets'
     | '/register'
     | '/admin/login'
+    | '/markets/$coinId'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/markets'
     | '/register'
     | '/admin/login'
+    | '/markets/$coinId'
     | '/admin'
   id:
     | '__root__'
@@ -108,6 +119,7 @@ export interface FileRouteTypes {
     | '/markets'
     | '/register'
     | '/admin/login'
+    | '/markets/$coinId'
     | '/admin/'
   fileRoutesById: FileRoutesById
 }
@@ -115,7 +127,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
-  MarketsRoute: typeof MarketsRoute
+  MarketsRoute: typeof MarketsRouteWithChildren
   RegisterRoute: typeof RegisterRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -165,6 +177,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/markets/$coinId': {
+      id: '/markets/$coinId'
+      path: '/$coinId'
+      fullPath: '/markets/$coinId'
+      preLoaderRoute: typeof MarketsCoinIdRouteImport
+      parentRoute: typeof MarketsRoute
+    }
     '/admin/login': {
       id: '/admin/login'
       path: '/admin/login'
@@ -175,11 +194,22 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface MarketsRouteChildren {
+  MarketsCoinIdRoute: typeof MarketsCoinIdRoute
+}
+
+const MarketsRouteChildren: MarketsRouteChildren = {
+  MarketsCoinIdRoute: MarketsCoinIdRoute,
+}
+
+const MarketsRouteWithChildren =
+  MarketsRoute._addFileChildren(MarketsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
-  MarketsRoute: MarketsRoute,
+  MarketsRoute: MarketsRouteWithChildren,
   RegisterRoute: RegisterRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminIndexRoute: AdminIndexRoute,

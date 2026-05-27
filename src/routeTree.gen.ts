@@ -10,15 +10,46 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as ReferralRouteImport } from './routes/referral'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as PayRouteImport } from './routes/pay'
+import { Route as NotificationsRouteImport } from './routes/notifications'
+import { Route as MarketsRouteImport } from './routes/markets'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as MarketsCoinIdRouteImport } from './routes/markets.$coinId'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReferralRoute = ReferralRouteImport.update({
+  id: '/referral',
+  path: '/referral',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PayRoute = PayRouteImport.update({
+  id: '/pay',
+  path: '/pay',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MarketsRoute = MarketsRouteImport.update({
+  id: '/markets',
+  path: '/markets',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -41,6 +72,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MarketsCoinIdRoute = MarketsCoinIdRouteImport.update({
+  id: '/$coinId',
+  path: '/$coinId',
+  getParentRoute: () => MarketsRoute,
+} as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/admin/login',
   path: '/admin/login',
@@ -51,16 +87,28 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/markets': typeof MarketsRouteWithChildren
+  '/notifications': typeof NotificationsRoute
+  '/pay': typeof PayRoute
+  '/profile': typeof ProfileRoute
+  '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
   '/admin/login': typeof AdminLoginRoute
+  '/markets/$coinId': typeof MarketsCoinIdRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/markets': typeof MarketsRouteWithChildren
+  '/notifications': typeof NotificationsRoute
+  '/pay': typeof PayRoute
+  '/profile': typeof ProfileRoute
+  '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
   '/admin/login': typeof AdminLoginRoute
+  '/markets/$coinId': typeof MarketsCoinIdRoute
   '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
@@ -68,8 +116,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/markets': typeof MarketsRouteWithChildren
+  '/notifications': typeof NotificationsRoute
+  '/pay': typeof PayRoute
+  '/profile': typeof ProfileRoute
+  '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
   '/admin/login': typeof AdminLoginRoute
+  '/markets/$coinId': typeof MarketsCoinIdRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
@@ -78,18 +132,42 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/login'
+    | '/markets'
+    | '/notifications'
+    | '/pay'
+    | '/profile'
+    | '/referral'
     | '/register'
     | '/admin/login'
+    | '/markets/$coinId'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/login' | '/register' | '/admin/login' | '/admin'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/markets'
+    | '/notifications'
+    | '/pay'
+    | '/profile'
+    | '/referral'
+    | '/register'
+    | '/admin/login'
+    | '/markets/$coinId'
+    | '/admin'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
     | '/login'
+    | '/markets'
+    | '/notifications'
+    | '/pay'
+    | '/profile'
+    | '/referral'
     | '/register'
     | '/admin/login'
+    | '/markets/$coinId'
     | '/admin/'
   fileRoutesById: FileRoutesById
 }
@@ -97,6 +175,11 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
+  MarketsRoute: typeof MarketsRouteWithChildren
+  NotificationsRoute: typeof NotificationsRoute
+  PayRoute: typeof PayRoute
+  ProfileRoute: typeof ProfileRoute
+  ReferralRoute: typeof ReferralRoute
   RegisterRoute: typeof RegisterRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -109,6 +192,41 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/referral': {
+      id: '/referral'
+      path: '/referral'
+      fullPath: '/referral'
+      preLoaderRoute: typeof ReferralRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pay': {
+      id: '/pay'
+      path: '/pay'
+      fullPath: '/pay'
+      preLoaderRoute: typeof PayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/markets': {
+      id: '/markets'
+      path: '/markets'
+      fullPath: '/markets'
+      preLoaderRoute: typeof MarketsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -139,6 +257,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/markets/$coinId': {
+      id: '/markets/$coinId'
+      path: '/$coinId'
+      fullPath: '/markets/$coinId'
+      preLoaderRoute: typeof MarketsCoinIdRouteImport
+      parentRoute: typeof MarketsRoute
+    }
     '/admin/login': {
       id: '/admin/login'
       path: '/admin/login'
@@ -149,10 +274,26 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface MarketsRouteChildren {
+  MarketsCoinIdRoute: typeof MarketsCoinIdRoute
+}
+
+const MarketsRouteChildren: MarketsRouteChildren = {
+  MarketsCoinIdRoute: MarketsCoinIdRoute,
+}
+
+const MarketsRouteWithChildren =
+  MarketsRoute._addFileChildren(MarketsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
+  MarketsRoute: MarketsRouteWithChildren,
+  NotificationsRoute: NotificationsRoute,
+  PayRoute: PayRoute,
+  ProfileRoute: ProfileRoute,
+  ReferralRoute: ReferralRoute,
   RegisterRoute: RegisterRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminIndexRoute: AdminIndexRoute,

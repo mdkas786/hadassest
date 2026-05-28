@@ -1,6 +1,7 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { AdminShell } from "@/components/AdminShell";
 
 export const Route = createFileRoute("/admin/")({
   head: () => ({ meta: [{ title: "Admin — H.A.D." }] }),
@@ -8,62 +9,56 @@ export const Route = createFileRoute("/admin/")({
 });
 
 function AdminHome() {
-  const nav = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ users: 0, invested: 0, pending: 0 });
+  const [stats, setStats] = useState({ users: 0, invested: 0, pending: 0, active: 0 });
 
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { nav({ to: "/admin/login" }); return; }
-      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
-      if (!(roles || []).some((r) => r.role === "admin")) { nav({ to: "/admin/login" }); return; }
-      const [u, inv, pend] = await Promise.all([
+      const [u, inv, pend, act] = await Promise.all([
         supabase.from("profiles").select("id", { count: "exact", head: true }),
         supabase.from("investments").select("amount_invested"),
         supabase.from("transactions").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("trading_assets").select("id", { count: "exact", head: true }).eq("status", "active"),
       ]);
       setStats({
         users: u.count || 0,
         invested: (inv.data || []).reduce((a, b) => a + Number(b.amount_invested), 0),
         pending: pend.count || 0,
+        active: act.count || 0,
       });
-      setLoading(false);
     })();
-  }, [nav]);
-
-  if (loading) return <div className="min-h-screen bg-navy text-white grid place-items-center">Loading…</div>;
+  }, []);
 
   return (
-    <div className="min-h-screen bg-navy text-white">
-      <header className="border-b border-gold/20 bg-navy-light/40">
-        <div className="mx-auto max-w-6xl px-6 h-16 flex items-center justify-between">
-          <h1 className="font-serif text-xl text-gold">H.A.D. Admin Panel</h1>
-          <button onClick={async () => { await supabase.auth.signOut(); nav({ to: "/admin/login" }); }} className="text-sm text-white/70 hover:text-gold">Logout</button>
-        </div>
-      </header>
-      <main className="mx-auto max-w-6xl px-6 py-10">
-        <p className="text-xs tracking-[0.3em] text-gold uppercase">Dashboard</p>
-        <h2 className="font-serif text-3xl mt-1">Overview</h2>
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          <Card label="Total Users" value={stats.users} />
-          <Card label="Total Invested" value={`₹${stats.invested.toLocaleString("en-IN")}`} />
-          <Card label="Pending Verifications" value={stats.pending} accent />
-        </div>
-        <div className="mt-10 rounded-xl border border-gold/20 bg-navy-light/40 p-6">
-          <p className="text-white/70 text-sm">Phase 2 (user dashboard + Markets + CoinCap) and Phase 3 (full admin pages — Users, Investments, Payment Verification, Trading Control, etc.) will be added next. Schema, auth, and Phase 1 foundation are live.</p>
-          <Link to="/" className="mt-4 inline-block text-sm text-gold">← Back to site</Link>
-        </div>
-      </main>
-    </div>
+    <AdminShell title="Dashboard">
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card label="Total Users" value={stats.users} to="/admin/users" />
+        <Card label="Total Invested" value={`₹${stats.invested.toLocaleString("en-IN")}`} to="/admin/investments" />
+        <Card label="Pending Verifications" value={stats.pending} accent to="/admin/payments" />
+        <Card label="Active Trades" value={stats.active} to="/admin/trading" />
+      </div>
+      <div className="mt-10 grid gap-4 md:grid-cols-2">
+        <QuickAction title="Broadcast notification" to="/admin/notifications" />
+        <QuickAction title="Update wallets / UPI" to="/admin/wallets" />
+        <QuickAction title="Maintenance mode" to="/admin/settings" />
+        <QuickAction title="Add trading asset" to="/admin/trading" />
+      </div>
+    </AdminShell>
   );
 }
 
-function Card({ label, value, accent }: { label: string; value: string | number; accent?: boolean }) {
+function Card({ label, value, accent, to }: { label: string; value: string | number; accent?: boolean; to: string }) {
   return (
-    <div className={`rounded-xl border p-6 ${accent ? "border-gold bg-gold/5" : "border-gold/20 bg-navy-light/40"}`}>
+    <Link to={to} className={`block rounded-xl border p-6 transition hover:border-gold ${accent ? "border-gold bg-gold/5" : "border-gold/20 bg-navy-light/40"}`}>
       <div className="text-xs text-white/60 uppercase tracking-widest">{label}</div>
       <div className="mt-2 font-serif text-3xl text-gold">{value}</div>
-    </div>
+    </Link>
+  );
+}
+function QuickAction({ title, to }: { title: string; to: string }) {
+  return (
+    <Link to={to} className="rounded-xl border border-gold/20 bg-navy-light/40 p-5 hover:border-gold transition flex items-center justify-between">
+      <span>{title}</span>
+      <span className="text-gold">→</span>
+    </Link>
   );
 }

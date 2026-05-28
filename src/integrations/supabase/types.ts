@@ -323,6 +323,34 @@ export type Database = {
     }
     Functions: {
       generate_had_id: { Args: never; Returns: string }
+      get_trading_assets_admin: {
+        Args: never
+        Returns: {
+          admin_note: string | null
+          allocation_percent: number
+          asset_category: string
+          asset_name: string
+          coincap_id: string | null
+          created_at: string
+          current_price: number
+          custom_current_price: number | null
+          entry_price: number
+          expected_duration_days: number
+          id: string
+          profit_target_percent: number
+          risk_level: Database["public"]["Enums"]["risk_level"]
+          status: Database["public"]["Enums"]["asset_status"]
+          symbol: string
+          updated_at: string
+          use_manual_price: boolean
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "trading_assets"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -1,75 +1,109 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { HAD_ID_RE, hadEmail, hadPassword, normalizeHadId } from "@/lib/hadAuth";
 import logo from "@/assets/had-logo.jpg";
 
 export const Route = createFileRoute("/register")({
-  head: () => ({ meta: [{ title: "Register — H.A.D. Asset Management" }] }),
+  head: () => ({ meta: [{ title: "Register — H.A.D." }] }),
   component: RegisterPage,
 });
 
 type Form = {
-  full_name: string; mobile: string; city: string; email: string; password: string;
-  wallet_address: string; upi_id: string; referred_by: string;
+  full_name: string; mobile: string; city: string;
+  upi_id: string; wallet_address: string; referred_by: string;
 };
 
 function RegisterPage() {
   const nav = useNavigate();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<Form>({
-    full_name: "", mobile: "", city: "", email: "", password: "",
-    wallet_address: "", upi_id: "", referred_by: "",
+    full_name: "", mobile: "", city: "", upi_id: "", wallet_address: "", referred_by: "",
   });
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState<{ had_id?: string } | null>(null);
+  const [hadId, setHadId] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(15);
 
-  const update = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
+  // Capture ?ref= query param as referrer
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const u = new URL(window.location.href);
+    const r = u.searchParams.get("ref");
+    if (r) setForm((f) => ({ ...f, referred_by: normalizeHadId(r) }));
+  }, []);
+
+  // Countdown on success screen
+  useEffect(() => {
+    if (!hadId) return;
+    if (countdown <= 0) { nav({ to: "/dashboard" }); return; }
+    const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [hadId, countdown, nav]);
+
+  const update = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm({ ...form, [k]: k === "referred_by" ? e.target.value.toUpperCase() : e.target.value });
 
   async function submit() {
-    setErr(null); setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
+    setErr(null);
+    if (!form.full_name || !form.mobile || !form.city) { setErr("Sabhi zaroori fields bharein."); return; }
+    if (form.referred_by && !HAD_ID_RE.test(normalizeHadId(form.referred_by))) {
+      setErr("Referral code HAD format hona chahiye (e.g. HAD22949).");
+      return;
+    }
+    setLoading(true);
+    // 1) Reserve a fresh HAD ID server-side
+    const { data: newId, error: rpcErr } = await supabase.rpc("register_had_user", {
+      p_full_name: form.full_name,
+      p_mobile: form.mobile,
+      p_city: form.city,
+      p_upi_id: form.upi_id || null,
+      p_wallet_address: form.wallet_address || null,
+      p_referred_by: form.referred_by ? normalizeHadId(form.referred_by) : null,
+    });
+    if (rpcErr || !newId) { setLoading(false); setErr(rpcErr?.message || "Registration fail"); return; }
+    const reserved = String(newId);
+    // 2) Create auth user with synthetic email/password derived from HAD ID
+    const { error } = await supabase.auth.signUp({
+      email: hadEmail(reserved),
+      password: hadPassword(reserved),
       options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
         data: {
+          had_id: reserved,
           full_name: form.full_name,
           mobile: form.mobile,
           city: form.city,
-          upi_id: form.upi_id,
-          wallet_address: form.wallet_address,
-          referred_by: form.referred_by || null,
+          upi_id: form.upi_id || null,
+          wallet_address: form.wallet_address || null,
+          referred_by: form.referred_by ? normalizeHadId(form.referred_by) : null,
         },
       },
     });
     setLoading(false);
     if (error) { setErr(error.message); return; }
-    // Try to fetch HAD ID
-    if (data.user) {
-      const { data: p } = await supabase.from("profiles").select("had_id").eq("id", data.user.id).maybeSingle();
-      setDone({ had_id: p?.had_id });
-    } else {
-      setDone({});
-    }
+    // Auto sign-in
+    await supabase.auth.signInWithPassword({ email: hadEmail(reserved), password: hadPassword(reserved) });
+    setHadId(reserved);
   }
 
-  if (done) {
+  if (hadId) {
     return (
       <div className="min-h-screen bg-navy text-white flex items-center justify-center px-6">
-        <div className="w-full max-w-md rounded-xl border border-gold/30 bg-navy-light/60 p-8 text-center">
-          <img src={logo} className="h-14 w-14 mx-auto rounded object-cover" alt="" />
-          <h1 className="font-serif text-3xl mt-4">Welcome to H.A.D.</h1>
-          {done.had_id && (
-            <>
-              <p className="text-white/70 mt-2 text-sm">Your investor ID</p>
-              <p className="font-serif text-4xl text-gold mt-1">{done.had_id}</p>
-            </>
-          )}
-          <p className="text-white/60 text-sm mt-4">
-            Check your email to verify your account, then sign in.
-          </p>
-          <button onClick={() => nav({ to: "/login" })} className="mt-6 w-full rounded-md bg-gold py-2.5 text-navy font-medium">Go to Login</button>
+        <div className="w-full max-w-md rounded-xl border-2 border-gold/50 bg-navy-light/70 p-8 text-center">
+          <img src={logo} className="h-16 w-16 mx-auto rounded object-cover ring-2 ring-gold/40" alt="" />
+          <h1 className="font-serif text-2xl mt-4 text-gold">Welcome to H.A.D.</h1>
+          <p className="text-white/70 mt-4 text-sm">Yeh aapka login ID hai:</p>
+          <p className="font-mono text-5xl text-gold mt-3 tracking-[0.3em]">{hadId}</p>
+          <p className="text-white/80 mt-4 text-sm">Sirf yeh ID se login karein — koi password nahi.</p>
+          <button
+            onClick={() => {
+              navigator.clipboard?.writeText(hadId);
+            }}
+            className="mt-5 w-full rounded-md bg-gold py-2.5 text-navy font-medium"
+          >Copy HAD ID</button>
+          <p className="mt-4 text-red-300 text-xs font-semibold">⚠ Screenshot le lein. Yeh screen dobara nahi aayegi.</p>
+          <p className="mt-3 text-white/50 text-xs">{countdown}s mein dashboard…</p>
+          <button onClick={() => nav({ to: "/dashboard" })} className="mt-3 text-gold text-sm underline">Abhi jao</button>
         </div>
       </div>
     );
@@ -88,35 +122,31 @@ function RegisterPage() {
               <div key={n} className={`h-1 flex-1 rounded ${n <= step ? "bg-gold" : "bg-white/10"}`} />
             ))}
           </div>
-          <h1 className="font-serif text-2xl">{["Your details", "Payment info", "Review"][step - 1]}</h1>
+          <h1 className="font-serif text-2xl">{["Apke details", "Payment info", "Review"][step - 1]}</h1>
 
           {step === 1 && (
             <div className="mt-5 space-y-4">
               <Field label="Full name" value={form.full_name} onChange={update("full_name")} />
               <Field label="Mobile" value={form.mobile} onChange={update("mobile")} />
               <Field label="City" value={form.city} onChange={update("city")} />
-              <Field label="Email" type="email" value={form.email} onChange={update("email")} />
-              <Field label="Password (min 8)" type="password" value={form.password} onChange={update("password")} />
             </div>
           )}
-
           {step === 2 && (
             <div className="mt-5 space-y-4">
-              <Field label="UPI ID" value={form.upi_id} onChange={update("upi_id")} placeholder="yourname@bank" />
-              <Field label="Blockchain wallet (USDT TRC20)" value={form.wallet_address} onChange={update("wallet_address")} placeholder="T..." />
-              <Field label="Referral code (optional)" value={form.referred_by} onChange={update("referred_by")} />
+              <Field label="UPI ID (optional)" value={form.upi_id} onChange={update("upi_id")} placeholder="yourname@bank" />
+              <Field label="Wallet (USDT TRC20, optional)" value={form.wallet_address} onChange={update("wallet_address")} placeholder="T..." />
+              <Field label="Referral HAD ID (optional)" value={form.referred_by} onChange={update("referred_by")} placeholder="HAD22949" />
             </div>
           )}
-
           {step === 3 && (
             <div className="mt-5 space-y-3 text-sm">
               <Row k="Name" v={form.full_name} />
               <Row k="Mobile" v={form.mobile} />
               <Row k="City" v={form.city} />
-              <Row k="Email" v={form.email} />
               <Row k="UPI" v={form.upi_id || "—"} />
               <Row k="Wallet" v={form.wallet_address || "—"} />
               <Row k="Referrer" v={form.referred_by || "—"} />
+              <p className="text-gold/80 text-xs pt-2">Submit ke baad aapka HAD ID mil jayega — wahi aapka permanent login hai.</p>
             </div>
           )}
 
@@ -125,10 +155,10 @@ function RegisterPage() {
           <div className="mt-6 flex gap-3">
             {step > 1 && <button onClick={() => setStep(step - 1)} className="flex-1 rounded-md border border-gold/30 py-2.5">Back</button>}
             {step < 3 && <button onClick={() => setStep(step + 1)} className="flex-1 rounded-md bg-gold py-2.5 text-navy font-medium">Continue</button>}
-            {step === 3 && <button disabled={loading} onClick={submit} className="flex-1 rounded-md bg-gold py-2.5 text-navy font-medium disabled:opacity-60">{loading ? "Creating…" : "Create account"}</button>}
+            {step === 3 && <button disabled={loading} onClick={submit} className="flex-1 rounded-md bg-gold py-2.5 text-navy font-medium disabled:opacity-60">{loading ? "Creating…" : "HAD ID generate karein"}</button>}
           </div>
           <p className="text-center text-sm text-white/60 mt-4">
-            Already registered? <Link to="/login" className="text-gold">Sign in</Link>
+            Already have HAD ID? <Link to="/login" className="text-gold">Sign in</Link>
           </p>
         </div>
       </div>

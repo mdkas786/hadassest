@@ -322,6 +322,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_had_id: {
+        Args: { p_had_id: string }
+        Returns: {
+          exists_active: boolean
+        }[]
+      }
       generate_had_id: { Args: never; Returns: string }
       get_trading_assets_admin: {
         Args: never
@@ -357,6 +363,17 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      register_had_user: {
+        Args: {
+          p_city: string
+          p_full_name: string
+          p_mobile: string
+          p_referred_by?: string
+          p_upi_id?: string
+          p_wallet_address?: string
+        }
+        Returns: string
       }
     }
     Enums: {

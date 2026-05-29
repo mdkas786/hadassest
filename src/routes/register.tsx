@@ -57,9 +57,9 @@ function RegisterPage() {
       p_full_name: form.full_name,
       p_mobile: form.mobile,
       p_city: form.city,
-      p_upi_id: form.upi_id || null,
-      p_wallet_address: form.wallet_address || null,
-      p_referred_by: form.referred_by ? normalizeHadId(form.referred_by) : null,
+      p_upi_id: form.upi_id || undefined,
+      p_wallet_address: form.wallet_address || undefined,
+      p_referred_by: form.referred_by ? normalizeHadId(form.referred_by) : undefined,
     });
     if (rpcErr || !newId) { setLoading(false); setErr(rpcErr?.message || "Registration fail"); return; }
     const reserved = String(newId);

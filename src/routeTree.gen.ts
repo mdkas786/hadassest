@@ -28,6 +28,7 @@ import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
 import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminInvestmentsRouteImport } from './routes/admin.investments'
+import { Route as AdminAiRouteImport } from './routes/admin.ai'
 
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
@@ -124,6 +125,11 @@ const AdminInvestmentsRoute = AdminInvestmentsRouteImport.update({
   path: '/admin/investments',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminAiRoute = AdminAiRouteImport.update({
+  id: '/admin/ai',
+  path: '/admin/ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
+  '/admin/ai': typeof AdminAiRoute
   '/admin/investments': typeof AdminInvestmentsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -156,6 +163,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
+  '/admin/ai': typeof AdminAiRoute
   '/admin/investments': typeof AdminInvestmentsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -178,6 +186,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
+  '/admin/ai': typeof AdminAiRoute
   '/admin/investments': typeof AdminInvestmentsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -201,6 +210,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/referral'
     | '/register'
+    | '/admin/ai'
     | '/admin/investments'
     | '/admin/login'
     | '/admin/notifications'
@@ -222,6 +232,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/referral'
     | '/register'
+    | '/admin/ai'
     | '/admin/investments'
     | '/admin/login'
     | '/admin/notifications'
@@ -243,6 +254,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/referral'
     | '/register'
+    | '/admin/ai'
     | '/admin/investments'
     | '/admin/login'
     | '/admin/notifications'
@@ -265,6 +277,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   ReferralRoute: typeof ReferralRoute
   RegisterRoute: typeof RegisterRoute
+  AdminAiRoute: typeof AdminAiRoute
   AdminInvestmentsRoute: typeof AdminInvestmentsRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminNotificationsRoute: typeof AdminNotificationsRoute
@@ -411,6 +424,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminInvestmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/ai': {
+      id: '/admin/ai'
+      path: '/admin/ai'
+      fullPath: '/admin/ai'
+      preLoaderRoute: typeof AdminAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -435,6 +455,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   ReferralRoute: ReferralRoute,
   RegisterRoute: RegisterRoute,
+  AdminAiRoute: AdminAiRoute,
   AdminInvestmentsRoute: AdminInvestmentsRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminNotificationsRoute: AdminNotificationsRoute,

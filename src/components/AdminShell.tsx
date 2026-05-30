@@ -11,6 +11,7 @@ const nav = [
   { to: "/admin/notifications", label: "Notifications" },
   { to: "/admin/wallets", label: "Wallets" },
   { to: "/admin/settings", label: "App Settings" },
+  { to: "/admin/ai", label: "🤖 Premium AI Tools" },
 ];
 
 export function AdminShell({ title, children }: { title: string; children: ReactNode }) {

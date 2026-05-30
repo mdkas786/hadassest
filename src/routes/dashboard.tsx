@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Bell } from "lucide-react";
+import { LiveTicker } from "@/components/LiveTicker";
 import {
   CoinAsset, fmtInr, fmtPct, fmtUsd,
   getInrRate, getTopAssets, subscribeRealTimePrice,

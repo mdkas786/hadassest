@@ -140,6 +140,8 @@ function MarketsPage() {
         </div>
       </header>
 
+      <LiveTicker />
+
       <main className="mx-auto max-w-6xl px-6 py-8">
         {/* Search */}
         <div className="relative">

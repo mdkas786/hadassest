@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Bell } from "lucide-react";
+import { LiveTicker } from "@/components/LiveTicker";
 import {
   CoinAsset, fmtInr, fmtPct, fmtUsd,
   getInrRate, getTopAssets, subscribeRealTimePrice,
@@ -129,25 +130,9 @@ function Dashboard() {
         </div>
       </header>
 
-      {/* Market ticker */}
-      {topAssets.length > 0 && (
-        <div className="border-b border-gold/10 bg-navy-light/20 overflow-hidden">
-          <div className="flex gap-8 px-6 py-2 animate-[ticker_60s_linear_infinite] whitespace-nowrap text-xs" style={{ animation: "ticker 60s linear infinite" }}>
-            {[...topAssets, ...topAssets].map((a, i) => {
-              const p = live[a.id] ? Number(live[a.id]) : Number(a.priceUsd);
-              const ch = Number(a.changePercent24Hr);
-              return (
-                <span key={i} className="inline-flex items-center gap-2">
-                  <b className="text-gold">{a.symbol}</b>
-                  <span>{fmtUsd(p)}</span>
-                  <span className={ch>=0?"text-emerald-400":"text-red-400"}>{fmtPct(ch)}</span>
-                </span>
-              );
-            })}
-          </div>
-          <style>{`@keyframes ticker { from {transform:translateX(0)} to {transform:translateX(-50%)} }`}</style>
-        </div>
-      )}
+      {/* Live market ticker — Binance WebSocket with CoinCap fallback */}
+      <LiveTicker />
+
 
       {banner && (
         <div className="bg-amber-400/15 border-b border-amber-400/30 text-amber-200 px-6 py-2 text-sm text-center">{banner}</div>

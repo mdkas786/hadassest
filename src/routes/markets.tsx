@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { LiveTicker } from "@/components/LiveTicker";
 import {
   CoinAsset,
   fmtInr,
@@ -139,6 +140,8 @@ function MarketsPage() {
           <button onClick={async () => { await supabase.auth.signOut(); nav({ to: "/" }); }} className="text-sm text-white/70 hover:text-gold">Logout</button>
         </div>
       </header>
+
+      <LiveTicker />
 
       <main className="mx-auto max-w-6xl px-6 py-8">
         {/* Search */}

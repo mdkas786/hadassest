@@ -15,8 +15,8 @@ type Txn = {
 };
 
 function planFor(amount: number): { plan: "starter" | "growth" | "fortune"; rate: number } {
-  if (amount >= 100000) return { plan: "fortune", rate: 7 };
-  if (amount >= 25000) return { plan: "growth", rate: 6 };
+  if (amount >= 1000000) return { plan: "fortune", rate: 7 };
+  if (amount >= 500000) return { plan: "growth", rate: 6 };
   return { plan: "starter", rate: 5 };
 }
 
@@ -47,8 +47,8 @@ function AdminPayments() {
         plan_name: p.plan, plan_rate: p.rate, expected_2x: Number(t.amount) * 2, status: "active",
       });
       await supabase.from("notifications").insert({
-        had_id: t.had_id, title: "Investment confirmed",
-        body: `Your investment of ₹${Number(t.amount).toLocaleString("en-IN")} on the ${p.plan} plan is now active.`,
+        had_id: t.had_id, title: "Payment Verified! ✅",
+        body: `Aapki payment ₹${Number(t.amount).toLocaleString("en-IN")} verify ho gayi. Plan: ${p.plan.toUpperCase()} @ ${p.rate}% monthly. Dashboard mein updated hai.`,
         notif_type: "success",
       });
     }

@@ -438,13 +438,13 @@ function PaperBot() {
       if (signal === "BUY" && qty === 0 && cash > 10) {
         const buyQty = (cash * 0.95) / price;
         setQty(buyQty); setCash(cash - buyQty * price);
-        setTrades((t) => [{ time: new Date().toLocaleTimeString(), side: "BUY", price, qty: buyQty, reason }, ...t].slice(0, 50));
+        setTrades((t) => [{ time: new Date().toLocaleTimeString(), side: "BUY" as const, price, qty: buyQty, reason }, ...t].slice(0, 50));
       } else if (signal === "SELL" && qty > 0) {
         const proceeds = qty * price;
         const lastBuy = trades.find((x) => x.side === "BUY");
         const tradePnl = lastBuy ? proceeds - lastBuy.qty * lastBuy.price : 0;
         setCash(cash + proceeds); setQty(0);
-        setTrades((t) => [{ time: new Date().toLocaleTimeString(), side: "SELL", price, qty, reason, pnl: tradePnl }, ...t].slice(0, 50));
+        setTrades((t) => [{ time: new Date().toLocaleTimeString(), side: "SELL" as const, price, qty, reason, pnl: tradePnl }, ...t].slice(0, 50));
       }
 
       // Auto-stop on 20% drawdown

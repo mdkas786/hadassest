@@ -33,10 +33,10 @@ function RegisterPage() {
     if (r) setForm((f) => ({ ...f, referred_by: normalizeHadId(r) }));
   }, []);
 
-  // Countdown on success screen
+  // Countdown on success screen — go to plan selection (Fix 1)
   useEffect(() => {
     if (!hadId) return;
-    if (countdown <= 0) { nav({ to: "/dashboard" }); return; }
+    if (countdown <= 0) { nav({ to: "/plan" }); return; }
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
     return () => clearTimeout(t);
   }, [hadId, countdown, nav]);
@@ -102,8 +102,8 @@ function RegisterPage() {
             className="mt-5 w-full rounded-md bg-gold py-2.5 text-navy font-medium"
           >Copy HAD ID</button>
           <p className="mt-4 text-red-300 text-xs font-semibold">⚠ Screenshot le lein. Yeh screen dobara nahi aayegi.</p>
-          <p className="mt-3 text-white/50 text-xs">{countdown}s mein dashboard…</p>
-          <button onClick={() => nav({ to: "/dashboard" })} className="mt-3 text-gold text-sm underline">Abhi jao</button>
+          <p className="mt-3 text-white/50 text-xs">{countdown}s mein plan selection…</p>
+          <button onClick={() => nav({ to: "/plan" })} className="mt-3 text-gold text-sm underline">Abhi jao</button>
         </div>
       </div>
     );

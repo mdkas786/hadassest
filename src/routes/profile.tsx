@@ -13,6 +13,7 @@ function ProfilePage() {
   const [p, setP] = useState<any>(null);
   const [txns, setTxns] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -25,11 +26,23 @@ function ProfilePage() {
     })();
   }, [nav]);
 
+  function validate(): string | null {
+    const trc = (p.trc20_wallet || "").trim();
+    const bep = (p.bep20_wallet || "").trim();
+    if (trc && !(trc.startsWith("T") && trc.length === 34)) return "TRC20 wallet 'T' se start hona chahiye aur 34 character ka.";
+    if (bep && !(bep.startsWith("0x") && bep.length === 42)) return "BEP20 wallet '0x' se start hona chahiye aur 42 character ka.";
+    return null;
+  }
+
   async function save() {
-    setSaving(true);
+    const v = validate();
+    if (v) { setErr(v); return; }
+    setErr(null); setSaving(true);
     const { error } = await supabase.from("profiles").update({
-      upi_id: p.upi_id, wallet_address: p.wallet_address, mobile: p.mobile, city: p.city,
-    }).eq("id", p.id);
+      upi_id: p.upi_id, mobile: p.mobile, city: p.city,
+      trc20_wallet: p.trc20_wallet || null,
+      bep20_wallet: p.bep20_wallet || null,
+    } as any).eq("id", p.id);
     setSaving(false);
     if (error) toast.error(error.message); else toast.success("Saved");
   }
@@ -51,18 +64,34 @@ function ProfilePage() {
           <p className="text-white/60 text-sm">HAD ID: <span className="text-gold">{p.had_id}</span></p>
         </div>
 
-        <section className="rounded-xl border border-gold/30 bg-navy-light/40 p-6 space-y-3">
-          {(["mobile","city","upi_id","wallet_address"] as const).map((k) => (
-            <label key={k} className="block text-sm">
-              <span className="text-xs text-white/60 uppercase tracking-widest">{k.replace("_"," ")}</span>
-              <input value={p[k] || ""} onChange={(e) => setP({ ...p, [k]: e.target.value })}
-                className="mt-1 w-full bg-navy border border-gold/25 rounded-md px-3 py-2 outline-none focus:border-gold" />
-            </label>
-          ))}
-          <button onClick={save} disabled={saving} className="bg-gold text-navy rounded-md px-5 py-2 text-sm font-medium disabled:opacity-60">
-            {saving ? "Saving…" : "Save"}
-          </button>
+        <section className="rounded-xl border border-gold/30 bg-navy-light/40 p-6 space-y-4">
+          <h2 className="font-serif text-lg">Contact</h2>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label="Mobile" value={p.mobile || ""} onChange={(v) => setP({ ...p, mobile: v })} />
+            <Field label="City" value={p.city || ""} onChange={(v) => setP({ ...p, city: v })} />
+          </div>
         </section>
+
+        <section className="rounded-xl border border-gold/30 bg-navy-light/40 p-6 space-y-4">
+          <h2 className="font-serif text-lg">Mera UPI (receive returns)</h2>
+          <Field label="UPI ID" value={p.upi_id || ""} onChange={(v) => setP({ ...p, upi_id: v })} placeholder="yourname@bank" />
+        </section>
+
+        <section className="rounded-xl border border-gold/30 bg-navy-light/40 p-6 space-y-4">
+          <h2 className="font-serif text-lg">Mere Crypto Wallets</h2>
+          <p className="text-xs text-white/50">Yeh wallets admin ko dikhenge taaki returns aapko crypto mein bheja jaa sake.</p>
+          <Field label="Mera TRC20 Wallet" value={p.trc20_wallet || ""}
+            onChange={(v) => setP({ ...p, trc20_wallet: v.trim() })}
+            placeholder="TRC20 wallet address (T...)" mono />
+          <Field label="Mera BEP20 Wallet" value={p.bep20_wallet || ""}
+            onChange={(v) => setP({ ...p, bep20_wallet: v.trim() })}
+            placeholder="BEP20 wallet address (0x...)" mono />
+          {err && <p className="text-sm text-red-300">{err}</p>}
+        </section>
+
+        <button onClick={save} disabled={saving} className="bg-gold text-navy rounded-md px-6 py-2.5 text-sm font-medium disabled:opacity-60">
+          {saving ? "Saving…" : "Save changes"}
+        </button>
 
         <section>
           <h2 className="font-serif text-xl mb-3">Recent transactions</h2>
@@ -89,5 +118,15 @@ function ProfilePage() {
         </section>
       </main>
     </div>
+  );
+}
+
+function Field({ label, value, onChange, placeholder, mono }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; mono?: boolean }) {
+  return (
+    <label className="block text-sm">
+      <span className="text-xs text-white/60 uppercase tracking-widest">{label}</span>
+      <input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
+        className={`mt-1 w-full bg-navy border border-gold/25 rounded-md px-3 py-2 outline-none focus:border-gold ${mono ? "font-mono text-sm" : ""}`} />
+    </label>
   );
 }

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ReferralRouteImport } from './routes/referral'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as PlanRouteImport } from './routes/plan'
 import { Route as PayRouteImport } from './routes/pay'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as MarketsRouteImport } from './routes/markets'
@@ -43,6 +44,11 @@ const ReferralRoute = ReferralRouteImport.update({
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlanRoute = PlanRouteImport.update({
+  id: '/plan',
+  path: '/plan',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PayRoute = PayRouteImport.update({
@@ -138,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/markets': typeof MarketsRouteWithChildren
   '/notifications': typeof NotificationsRoute
   '/pay': typeof PayRoute
+  '/plan': typeof PlanRoute
   '/profile': typeof ProfileRoute
   '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
@@ -160,6 +167,7 @@ export interface FileRoutesByTo {
   '/markets': typeof MarketsRouteWithChildren
   '/notifications': typeof NotificationsRoute
   '/pay': typeof PayRoute
+  '/plan': typeof PlanRoute
   '/profile': typeof ProfileRoute
   '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
@@ -183,6 +191,7 @@ export interface FileRoutesById {
   '/markets': typeof MarketsRouteWithChildren
   '/notifications': typeof NotificationsRoute
   '/pay': typeof PayRoute
+  '/plan': typeof PlanRoute
   '/profile': typeof ProfileRoute
   '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
     | '/markets'
     | '/notifications'
     | '/pay'
+    | '/plan'
     | '/profile'
     | '/referral'
     | '/register'
@@ -229,6 +239,7 @@ export interface FileRouteTypes {
     | '/markets'
     | '/notifications'
     | '/pay'
+    | '/plan'
     | '/profile'
     | '/referral'
     | '/register'
@@ -251,6 +262,7 @@ export interface FileRouteTypes {
     | '/markets'
     | '/notifications'
     | '/pay'
+    | '/plan'
     | '/profile'
     | '/referral'
     | '/register'
@@ -274,6 +286,7 @@ export interface RootRouteChildren {
   MarketsRoute: typeof MarketsRouteWithChildren
   NotificationsRoute: typeof NotificationsRoute
   PayRoute: typeof PayRoute
+  PlanRoute: typeof PlanRoute
   ProfileRoute: typeof ProfileRoute
   ReferralRoute: typeof ReferralRoute
   RegisterRoute: typeof RegisterRoute
@@ -310,6 +323,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plan': {
+      id: '/plan'
+      path: '/plan'
+      fullPath: '/plan'
+      preLoaderRoute: typeof PlanRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pay': {
@@ -452,6 +472,7 @@ const rootRouteChildren: RootRouteChildren = {
   MarketsRoute: MarketsRouteWithChildren,
   NotificationsRoute: NotificationsRoute,
   PayRoute: PayRoute,
+  PlanRoute: PlanRoute,
   ProfileRoute: ProfileRoute,
   ReferralRoute: ReferralRoute,
   RegisterRoute: RegisterRoute,
@@ -469,13 +490,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

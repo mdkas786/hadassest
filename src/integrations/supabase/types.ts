@@ -35,6 +35,81 @@ export type Database = {
         }
         Relationships: []
       }
+      app_wallets: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          updated_at: string
+          wallet_address: string
+          wallet_label: string | null
+          wallet_type: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          wallet_address: string
+          wallet_label?: string | null
+          wallet_type: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          wallet_address?: string
+          wallet_label?: string | null
+          wallet_type?: string
+        }
+        Relationships: []
+      }
+      daily_reports: {
+        Row: {
+          created_at: string
+          email_sent: boolean | null
+          email_to: string | null
+          id: string
+          pending_amount: number | null
+          pending_count: number | null
+          report_data: Json | null
+          report_date: string
+          total_invested: number | null
+          total_received: number | null
+          total_users: number | null
+        }
+        Insert: {
+          created_at?: string
+          email_sent?: boolean | null
+          email_to?: string | null
+          id?: string
+          pending_amount?: number | null
+          pending_count?: number | null
+          report_data?: Json | null
+          report_date?: string
+          total_invested?: number | null
+          total_received?: number | null
+          total_users?: number | null
+        }
+        Update: {
+          created_at?: string
+          email_sent?: boolean | null
+          email_to?: string | null
+          id?: string
+          pending_amount?: number | null
+          pending_count?: number | null
+          report_data?: Json | null
+          report_date?: string
+          total_invested?: number | null
+          total_received?: number | null
+          total_users?: number | null
+        }
+        Relationships: []
+      }
       investments: {
         Row: {
           amount_invested: number
@@ -139,6 +214,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          bep20_wallet: string | null
           city: string | null
           created_at: string
           email: string | null
@@ -149,11 +225,14 @@ export type Database = {
           mobile: string | null
           referral_code: string | null
           referred_by: string | null
+          selected_plan: string | null
+          trc20_wallet: string | null
           updated_at: string
           upi_id: string | null
           wallet_address: string | null
         }
         Insert: {
+          bep20_wallet?: string | null
           city?: string | null
           created_at?: string
           email?: string | null
@@ -164,11 +243,14 @@ export type Database = {
           mobile?: string | null
           referral_code?: string | null
           referred_by?: string | null
+          selected_plan?: string | null
+          trc20_wallet?: string | null
           updated_at?: string
           upi_id?: string | null
           wallet_address?: string | null
         }
         Update: {
+          bep20_wallet?: string | null
           city?: string | null
           created_at?: string
           email?: string | null
@@ -179,9 +261,47 @@ export type Database = {
           mobile?: string | null
           referral_code?: string | null
           referred_by?: string | null
+          selected_plan?: string | null
+          trc20_wallet?: string | null
           updated_at?: string
           upi_id?: string | null
           wallet_address?: string | null
+        }
+        Relationships: []
+      }
+      return_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          had_id: string
+          id: string
+          method: string
+          notes: string | null
+          paid_by: string | null
+          txn_ref: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          had_id: string
+          id?: string
+          method: string
+          notes?: string | null
+          paid_by?: string | null
+          txn_ref?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          had_id?: string
+          id?: string
+          method?: string
+          notes?: string | null
+          paid_by?: string | null
+          txn_ref?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -253,12 +373,16 @@ export type Database = {
           id: string
           method: string | null
           notes: string | null
+          payment_method: string | null
+          plan_name: string | null
           rejection_reason: string | null
           screenshot_url: string | null
+          slab_amount: number | null
           status: Database["public"]["Enums"]["transaction_status"]
           txn_ref: string | null
           type: Database["public"]["Enums"]["transaction_type"]
           user_id: string
+          utr_number: string | null
           verified_at: string | null
           verified_by: string | null
         }
@@ -269,12 +393,16 @@ export type Database = {
           id?: string
           method?: string | null
           notes?: string | null
+          payment_method?: string | null
+          plan_name?: string | null
           rejection_reason?: string | null
           screenshot_url?: string | null
+          slab_amount?: number | null
           status?: Database["public"]["Enums"]["transaction_status"]
           txn_ref?: string | null
           type?: Database["public"]["Enums"]["transaction_type"]
           user_id: string
+          utr_number?: string | null
           verified_at?: string | null
           verified_by?: string | null
         }
@@ -285,12 +413,16 @@ export type Database = {
           id?: string
           method?: string | null
           notes?: string | null
+          payment_method?: string | null
+          plan_name?: string | null
           rejection_reason?: string | null
           screenshot_url?: string | null
+          slab_amount?: number | null
           status?: Database["public"]["Enums"]["transaction_status"]
           txn_ref?: string | null
           type?: Database["public"]["Enums"]["transaction_type"]
           user_id?: string
+          utr_number?: string | null
           verified_at?: string | null
           verified_by?: string | null
         }

@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminShell } from "@/components/AdminShell";
+import { planForAmount, planRate, fmtInr } from "@/lib/plans";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/payments")({
   head: () => ({ meta: [{ title: "Payment Verification — Admin" }] }),
@@ -10,15 +12,11 @@ export const Route = createFileRoute("/admin/payments")({
 
 type Txn = {
   id: string; had_id: string; user_id: string; amount: number; type: string;
-  method: string | null; status: string; txn_ref: string | null; screenshot_url: string | null;
+  method: string | null; payment_method: string | null; status: string;
+  txn_ref: string | null; utr_number: string | null; screenshot_url: string | null;
+  plan_name: string | null; slab_amount: number | null;
   notes: string | null; created_at: string; rejection_reason: string | null;
 };
-
-function planFor(amount: number): { plan: "starter" | "growth" | "fortune"; rate: number } {
-  if (amount >= 1000000) return { plan: "fortune", rate: 7 };
-  if (amount >= 500000) return { plan: "growth", rate: 6 };
-  return { plan: "starter", rate: 5 };
-}
 
 function AdminPayments() {
   const [rows, setRows] = useState<Txn[]>([]);
@@ -28,30 +26,58 @@ function AdminPayments() {
 
   async function load() {
     setLoading(true);
-    const { data } = await supabase.from("transactions").select("*").eq("status", tab).order("created_at", { ascending: false }).limit(200);
+    const { data, error } = await supabase.from("transactions").select("*")
+      .eq("status", tab).order("created_at", { ascending: false }).limit(200);
+    if (error) toast.error(error.message);
     setRows((data as Txn[]) || []);
     setLoading(false);
   }
   useEffect(() => { load(); }, [tab]);
 
+  // Realtime
+  useEffect(() => {
+    const ch = supabase.channel("admin_txn").on("postgres_changes",
+      { event: "*", schema: "public", table: "transactions" }, () => load()
+    ).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [tab]);
+
   async function approve(t: Txn) {
     const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from("transactions").update({
+    const amount = Number(t.amount);
+    const plan = (t.plan_name as any) || planForAmount(amount);
+    const rate = planRate(plan);
+
+    const { error: upErr } = await supabase.from("transactions").update({
       status: "verified", verified_at: new Date().toISOString(), verified_by: user?.id || null,
     }).eq("id", t.id);
+    if (upErr) { toast.error(upErr.message); return; }
 
     if (t.type === "investment") {
-      const p = planFor(Number(t.amount));
-      await supabase.from("investments").insert({
-        user_id: t.user_id, had_id: t.had_id, amount_invested: t.amount,
-        plan_name: p.plan, plan_rate: p.rate, expected_2x: Number(t.amount) * 2, status: "active",
-      });
+      // Upsert aggregate investment per user
+      const { data: existing } = await supabase.from("investments").select("*").eq("user_id", t.user_id).maybeSingle();
+      if (existing) {
+        const newInvested = Number(existing.amount_invested) + amount;
+        await supabase.from("investments").update({
+          amount_invested: newInvested,
+          expected_2x: newInvested * 2,
+          plan_name: plan, plan_rate: rate, status: "active",
+        }).eq("id", existing.id);
+      } else {
+        await supabase.from("investments").insert({
+          user_id: t.user_id, had_id: t.had_id,
+          amount_invested: amount, amount_received: 0,
+          plan_name: plan, plan_rate: rate,
+          expected_2x: amount * 2, status: "active",
+        } as any);
+      }
       await supabase.from("notifications").insert({
         had_id: t.had_id, title: "Payment Verified! ✅",
-        body: `Aapki payment ₹${Number(t.amount).toLocaleString("en-IN")} verify ho gayi. Plan: ${p.plan.toUpperCase()} @ ${p.rate}% monthly. Dashboard mein updated hai.`,
+        body: `${fmtInr(amount)} aapke portfolio mein add ho gayi. Plan: ${String(plan).toUpperCase()} @ ${rate}% monthly.`,
         notif_type: "success",
       });
     }
+    toast.success("Approved");
     load();
   }
 
@@ -62,7 +88,8 @@ function AdminPayments() {
     }).eq("id", id);
     if (t) {
       await supabase.from("notifications").insert({
-        had_id: t.had_id, title: "Payment rejected", body: reason || "Your payment proof could not be verified.", notif_type: "warning",
+        had_id: t.had_id, title: "Payment rejected",
+        body: reason || "Your payment proof could not be verified.", notif_type: "warning",
       });
     }
     setReject(null);
@@ -115,19 +142,28 @@ function AdminPayments() {
 function PaymentCard({ t, onApprove, onReject, screenshotUrl }:
   { t: Txn; onApprove: () => void; onReject: () => void; screenshotUrl: (p: string | null) => Promise<string | null> }) {
   const [url, setUrl] = useState<string | null>(null);
+  const [name, setName] = useState<string>("");
   useEffect(() => { screenshotUrl(t.screenshot_url).then(setUrl); }, [t.screenshot_url]);
+  useEffect(() => {
+    supabase.from("profiles").select("full_name").eq("had_id", t.had_id).maybeSingle()
+      .then(({ data }) => setName((data as any)?.full_name || ""));
+  }, [t.had_id]);
+
+  const plan = t.plan_name || planForAmount(Number(t.amount));
 
   return (
     <div className="rounded-xl border border-gold/20 bg-navy-light/40 p-5 grid md:grid-cols-[1fr,200px] gap-5">
       <div>
         <div className="flex items-center gap-3 flex-wrap">
           <span className="font-mono text-gold">{t.had_id}</span>
+          {name && <span className="text-sm text-white/80">{name}</span>}
           <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-white/70 capitalize">{t.type}</span>
-          <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-white/70">{t.method || "—"}</span>
+          <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-white/70">{t.payment_method || t.method || "—"}</span>
+          <span className="text-xs px-2 py-0.5 rounded bg-gold/15 text-gold capitalize">{String(plan)}</span>
           <span className="text-xs text-white/50">{new Date(t.created_at).toLocaleString()}</span>
         </div>
-        <div className="mt-2 font-serif text-2xl text-gold">₹{Number(t.amount).toLocaleString("en-IN")}</div>
-        {t.txn_ref && <div className="text-xs text-white/60 mt-1">Ref: <span className="font-mono">{t.txn_ref}</span></div>}
+        <div className="mt-2 font-serif text-2xl text-gold">{fmtInr(Number(t.amount))}</div>
+        {(t.utr_number || t.txn_ref) && <div className="text-xs text-white/60 mt-1">UTR: <span className="font-mono">{t.utr_number || t.txn_ref}</span></div>}
         {t.notes && <div className="text-sm text-white/70 mt-2">{t.notes}</div>}
         {t.rejection_reason && <div className="text-sm text-red-300 mt-2">Rejected: {t.rejection_reason}</div>}
         {t.status === "pending" && (

@@ -1,48 +1,61 @@
-# H.A.D. Asset Management — Build Plan
+# H.A.D. Asset Management — Phase 3 Update Plan
 
-This is a large platform (user webapp + admin panel + shared backend that your Android app will also use). I'll build it in phases so we can verify each layer works before piling on the next.
+This is a large 13-fix request. I'll break it into 4 implementation waves so each migration + code batch is verifiable. Nothing existing will be removed — only added/fixed.
 
-## Backend (new, replaces old Supabase)
-- Enable **Lovable Cloud** — provisions a fresh Supabase project (URL + anon key you can reuse in your Flutter Android app).
-- Schema: `users`, `user_roles` (admin role separated), `investments`, `transactions`, `notifications`, `trading_assets`, `app_settings`, `config`, `company_wallets`.
-- Storage bucket: `payment-screenshots`.
-- RLS on every table; admin checks via `has_role()` security-definer function (NOT localStorage flags — that is unsafe).
-- Realtime enabled on `investments`, `notifications`, `trading_assets`, `app_settings`.
+## Wave 1 — Database foundation (one migration)
 
-## Security correction
-Your prompt stores admin auth in `localStorage` with a SHA256 in a public table. That is trivially bypassable. I'll instead use **Supabase Auth** for admin login + a `user_roles` table with an `admin` role. Same UX (username/password, lockout after 3 fails), but actually secure. The `hadmaster2026` account will be seeded.
+Add columns + tables needed by every later wave:
 
-## Phase 1 — Foundation (this turn)
-1. Splash screen with animated H.A.D. logo (shield + arrow reveal, gold shimmer, fade to app).
-2. Brand tokens: Navy `#0A1628`, Gold `#C9A84C`, serif/clean type pair.
-3. Landing page (`/`) with hero, 3 plan cards (Starter 5% / Growth 6% / Fortune 7%), how-it-works, CTA.
-4. Auth pages: `/register` (3-step), `/login`, `/admin/login`.
-5. Lovable Cloud enabled + full schema + seed data + RLS.
+- `profiles`: `selected_plan`, `trc20_wallet`, `bep20_wallet`
+- `transactions`: `utr_number`, `payment_method`, `plan_name`, `slab_amount` (keep existing `txn_ref`, `method`, `screenshot_url`)
+- New table `app_wallets` (wallet_type, address, label, display_order, is_active) — RLS: public SELECT, admin write
+- New table `daily_reports` — RLS: admin only
+- New table `return_payments` (admin → user payouts) so we don't pollute `transactions` semantics
+- Seed `app_wallets` with existing UPI `6307565252@axisbank / Faizan Khan`
+- Seed `app_settings` keys: `last_report_sent`, `report_email=hadasset2021@gmail.com`
+- Realtime publication for `app_wallets`, `investments`, `transactions`, `notifications`
 
-## Phase 2 — User app
-Dashboard, Markets (CoinCap integration), Coin detail w/ live WS price, Pay page (UPI deeplinks + crypto QR + screenshot upload), Referral, Profile, Notifications, Realtime subs, Maintenance overlay.
+I will NOT use the over-permissive `anon ALL` policies from the prompt — they would leak every user's investments to the public. Instead:
+- `app_wallets`: anon SELECT active only; admin ALL
+- `investments`: authenticated SELECT own / admin ALL (already correct)
+- `daily_reports`: admin only
 
-## Phase 3 — Admin panel (`/admin/*`)
-Dashboard stats, Users, Investments, Payment Verification (approve/reject + auto plan tiering), Trading Control (CoinCap search → add to portfolio), Return Payments, Notifications broadcaster, App Settings, Wallet Manager (QR), Reports (CSV/PDF), Market Monitor.
+## Wave 2 — User-facing fixes (Fix 1, 4, 5, 6, 12)
 
-## Phase 4 — Integrations
-- **CoinCap** service (`src/services/coinCapService.ts`) with all 10 functions + localStorage TTL cache + WebSocket live prices.
-- **Gemini** AI analysis via edge function (key stored as secret, never in client).
-- Recharts everywhere, jsPDF + PapaParse for exports, qrcode.react for QR.
+- **Slab selection screen** (`src/routes/plan.tsx`): shown after registration success, before dashboard. 3 cards (Starter/Growth/Fortune), "Skip" link. Writes `profiles.selected_plan`.
+- **Register flow**: redirect to `/plan` instead of `/dashboard` on first registration.
+- **Pay page rebuild**: fetch all active `app_wallets`, render UPI cards (with GPay/PhonePe/Paytm intent buttons + QR) and crypto tabs (TRC20/BEP20). Plan auto-detect badge from amount. On submit, write full transaction row with `utr_number`, `payment_method`, `plan_name`, `slab_amount`, `screenshot_url`.
+- **Profile page**: replace single wallet field with TRC20 + BEP20 inputs (validated: `T` len 34, `0x` len 42) + keep UPI.
+- **Dashboard**: investment summary (Invested / Received / 2X Target / Remaining / progress bar), projected returns table (1/3/6/12mo), plan badge, Supabase Realtime subscription on `investments` + `transactions` for own had_id.
 
-## Secrets I'll need from you
-- `GEMINI_API_KEY` — I'll prompt for it when we reach the AI analysis step.
-- CoinCap key you pasted is fine to embed (public-tier key), but I'll still store it as a Vite env for hygiene.
+## Wave 3 — Admin fixes (Fix 3, 7, 8, 9, 10, 13)
 
-## What you'll get for the Android app
-After Phase 1, I'll give you:
-- New Supabase URL
-- New Supabase anon key
-- Full SQL of the schema so your Flutter app reads/writes the exact same tables.
+- **Admin Wallets rebuild** (`admin.wallets.tsx`): 3 sections (UPI / TRC20 / BEP20), each up to 3 rows with address+label+active+delete, add/save buttons. CRUD against `app_wallets`.
+- **Admin Payments**: query fix so verified pending rows actually appear (currently filtering may miss new `transactions` schema). On Approve: upsert into `investments` (aggregate per had_id), auto-detect plan from amount, send Hinglish notification.
+- **Admin Investments rebuild**: top summary row, full table grouped by had_id, click-row → modal with: summary, algorithm projection table, eligibility ("Amount eligible today"), user's wallets (with copy buttons + UPI QR), "Mark Return Paid" form (writes `return_payments`, updates `investments.amount_received`, sends notification), transaction history.
+- **Admin Users**: add Delete button + confirmation modal; cascade delete transactions/investments/notifications/profile + auth user.
+- **Admin Trading**: rename search label, add "Publish to Users" toggle (uses existing `status` field), "Notify Users" button broadcasts notification.
+- **Admin Dashboard**: keep existing cards; add pending-alert banner, 3 new quick actions, recent activity feed (last 10 events from transactions/profiles/return_payments, Realtime).
 
-## Confirm before I start
-1. **OK to use Lovable Cloud** (new Supabase, replaces `jgwehkuwwdgidimfpbzt`)?
-2. **OK to use secure Supabase Auth for admin** instead of the localStorage SHA256 scheme? (Same login UX, real security.)
-3. **Admin seed password** — I'll generate a strong one and show it once, or you give me one now?
+## Wave 4 — Daily report (Fix 11)
 
-Reply "go" with answers to those 3 and I'll start Phase 1.
+- Server function `sendDailyReport` (createServerFn, admin-only) that builds the report (user stats, financial summary, per-user breakdown, projections) and emails it via Lovable's Resend integration to `hadasset2021@gmail.com`. Updates `app_settings.last_report_sent` + inserts `daily_reports` row.
+- "Send Report Now" button on admin dashboard.
+- pg_cron job hitting a public route `/api/public/hooks/daily-report` once per 24h (with apikey header check + dedupe via `last_report_sent`).
+- Email infra: requires Lovable Email domain setup — I'll detect status and surface the setup dialog if not configured.
+
+## Technical notes
+
+- All new tables get explicit `GRANT` + RLS per the security rules.
+- Realtime: `ALTER PUBLICATION supabase_realtime ADD TABLE …` for `app_wallets`, `investments`, `transactions`, `notifications`.
+- Plan detection helper centralised in `src/lib/plans.ts` (Starter <5L @5%, Growth 5–10L @6%, Fortune ≥10L @7%) — used by Pay page, admin approval, projections.
+- No breaking changes to existing routes; admin login, AI suite, markets, referral untouched.
+
+## Order of operations
+
+1. Wave 1 migration (must be approved before code changes — types regenerate after).
+2. Wave 2 code batch.
+3. Wave 3 code batch.
+4. Wave 4 (email infra check → server fn → cron).
+
+Shall I start with the Wave 1 migration?

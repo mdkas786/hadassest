@@ -54,26 +54,52 @@ function AdminPayments() {
     if (upErr) { toast.error(upErr.message); return; }
 
     if (t.type === "investment") {
-      // Upsert aggregate investment per user
+      const { data: verifiedTx } = await supabase
+        .from("transactions")
+        .select("amount, plan_name, created_at")
+        .eq("user_id", t.user_id)
+        .eq("type", "investment")
+        .eq("status", "verified")
+        .order("created_at", { ascending: true });
+
+      const totals = (verifiedTx || []).reduce((acc: any, row: any) => {
+        acc.amount += Number(row.amount || 0);
+        acc.plan = row.plan_name || acc.plan;
+        acc.start = acc.start || row.created_at;
+        return acc;
+      }, { amount: 0, plan, start: t.created_at });
+
+      const finalPlan = totals.plan || planForAmount(totals.amount);
+      const finalRate = planRate(finalPlan);
       const { data: existing } = await supabase.from("investments").select("*").eq("user_id", t.user_id).maybeSingle();
+
       if (existing) {
-        const newInvested = Number(existing.amount_invested) + amount;
         await supabase.from("investments").update({
-          amount_invested: newInvested,
-          expected_2x: newInvested * 2,
-          plan_name: plan, plan_rate: rate, status: "active",
+          amount_invested: totals.amount,
+          expected_2x: totals.amount * 2,
+          plan_name: finalPlan,
+          plan_rate: finalRate,
+          start_date: new Date(totals.start).toISOString().slice(0, 10),
+          status: Number(existing.amount_received) >= totals.amount * 2 ? "completed" : "active",
         }).eq("id", existing.id);
       } else {
         await supabase.from("investments").insert({
-          user_id: t.user_id, had_id: t.had_id,
-          amount_invested: amount, amount_received: 0,
-          plan_name: plan, plan_rate: rate,
-          expected_2x: amount * 2, status: "active",
+          user_id: t.user_id,
+          had_id: t.had_id,
+          amount_invested: totals.amount,
+          amount_received: 0,
+          plan_name: finalPlan,
+          plan_rate: finalRate,
+          expected_2x: totals.amount * 2,
+          start_date: new Date(totals.start).toISOString().slice(0, 10),
+          status: "active",
         } as any);
       }
+
+      await supabase.from("profiles").update({ selected_plan: finalPlan }).eq("id", t.user_id);
       await supabase.from("notifications").insert({
         had_id: t.had_id, title: "Payment Verified! ✅",
-        body: `${fmtInr(amount)} aapke portfolio mein add ho gayi. Plan: ${String(plan).toUpperCase()} @ ${rate}% monthly.`,
+        body: `${fmtInr(amount)} aapke portfolio mein add ho gayi. Plan: ${String(finalPlan).toUpperCase()} @ ${finalRate}% monthly.`,
         notif_type: "success",
       });
     }

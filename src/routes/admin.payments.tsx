@@ -76,7 +76,6 @@ function AdminPayments() {
       if (existing) {
         await supabase.from("investments").update({
           amount_invested: totals.amount,
-          expected_2x: totals.amount * 2,
           plan_name: finalPlan,
           plan_rate: finalRate,
           start_date: new Date(totals.start).toISOString().slice(0, 10),
@@ -90,7 +89,6 @@ function AdminPayments() {
           amount_received: 0,
           plan_name: finalPlan,
           plan_rate: finalRate,
-          expected_2x: totals.amount * 2,
           start_date: new Date(totals.start).toISOString().slice(0, 10),
           status: "active",
         } as any);

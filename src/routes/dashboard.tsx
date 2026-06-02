@@ -184,7 +184,7 @@ function Dashboard() {
                 {pendingTxns.slice(0, 3).map((txn) => (
                   <div key={txn.id} className="flex items-center justify-between gap-3 rounded-md bg-navy/40 px-3 py-2 text-sm">
                     <div>
-                      <div className="text-white">{fmtInr(Number(txn.amount))} <span className="text-white/50">· {(txn.plan_name || "starter").toUpperCase()}</span></div>
+                      <div className="text-white">₹{Number(txn.amount).toLocaleString("en-IN")} <span className="text-white/50">· {(txn.plan_name || "starter").toUpperCase()}</span></div>
                       <div className="text-xs text-white/50">{txn.payment_method || "Payment"} · {new Date(txn.created_at).toLocaleString()} {txn.utr_number ? `· UTR ${txn.utr_number}` : ""}</div>
                     </div>
                     <span className="rounded bg-amber-400/15 px-2 py-1 text-xs text-amber-200">Pending</span>

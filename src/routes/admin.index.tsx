@@ -11,21 +11,30 @@ export const Route = createFileRoute("/admin/")({
 function AdminHome() {
   const [stats, setStats] = useState({ users: 0, invested: 0, pending: 0, active: 0 });
 
+  async function loadStats() {
+    const [u, inv, pend, act] = await Promise.all([
+      supabase.from("profiles").select("id", { count: "exact", head: true }),
+      supabase.from("investments").select("amount_invested"),
+      supabase.from("transactions").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("trading_assets").select("id", { count: "exact", head: true }).eq("status", "active"),
+    ]);
+    setStats({
+      users: u.count || 0,
+      invested: (inv.data || []).reduce((a, b) => a + Number(b.amount_invested), 0),
+      pending: pend.count || 0,
+      active: act.count || 0,
+    });
+  }
+
   useEffect(() => {
-    (async () => {
-      const [u, inv, pend, act] = await Promise.all([
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("investments").select("amount_invested"),
-        supabase.from("transactions").select("id", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("trading_assets").select("id", { count: "exact", head: true }).eq("status", "active"),
-      ]);
-      setStats({
-        users: u.count || 0,
-        invested: (inv.data || []).reduce((a, b) => a + Number(b.amount_invested), 0),
-        pending: pend.count || 0,
-        active: act.count || 0,
-      });
-    })();
+    loadStats();
+    const ch = supabase.channel("admin_home_stats")
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, loadStats)
+      .on("postgres_changes", { event: "*", schema: "public", table: "investments" }, loadStats)
+      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, loadStats)
+      .on("postgres_changes", { event: "*", schema: "public", table: "trading_assets" }, loadStats)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
   return (

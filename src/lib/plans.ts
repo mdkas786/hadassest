@@ -6,25 +6,25 @@ export const PLANS: Record<PlanKey, {
   color: string; emoji: string; features: string[];
 }> = {
   starter: {
-    key: "starter", label: "Starter", rate: 5, min: 50_000, max: 499_999,
+    key: "starter", label: "Starter", rate: 5, min: 50_000, max: 1_000_000,
     color: "border-gold/60", emoji: "⭐",
-    features: ["Monthly regular payouts", "2X overall target tracking", "Free crypto/UPI withdrawals"],
+    features: ["5% monthly payout model", "50,000 se 10 lakh tak slab", "2X target tracking with payout visibility"],
   },
   growth: {
-    key: "growth", label: "Growth", rate: 6, min: 500_000, max: 999_999,
+    key: "growth", label: "Growth", rate: 6, min: 1_100_000, max: 3_000_000,
     color: "border-sky-400/60", emoji: "📈",
-    features: ["Higher monthly return rate", "Priority account verification", "Dedicated personal support"],
+    features: ["6% monthly payout model", "11 lakh se 30 lakh tak slab", "Priority verification and portfolio handling"],
   },
   fortune: {
-    key: "fortune", label: "Fortune", rate: 7, min: 1_000_000, max: Number.POSITIVE_INFINITY,
+    key: "fortune", label: "Fortune", rate: 7, min: 3_100_000, max: 5_000_000,
     color: "border-fuchsia-400/60", emoji: "👑",
-    features: ["Maximum corporate yields", "AI-powered portfolio insights", "Instant concierge withdrawals"],
+    features: ["7% monthly payout model", "31 lakh se 50 lakh tak slab", "Premium account handling and 2X tracking"],
   },
 };
 
 export function planForAmount(amount: number): PlanKey {
-  if (amount >= 1_000_000) return "fortune";
-  if (amount >= 500_000) return "growth";
+  if (amount >= 3_100_000) return "fortune";
+  if (amount >= 1_100_000) return "growth";
   return "starter";
 }
 

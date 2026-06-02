@@ -15,6 +15,7 @@ export const Route = createFileRoute("/dashboard")({
 
 interface Profile { id: string; had_id: string; full_name: string }
 interface Investment { id: string; plan_name: string; plan_rate: number; amount_invested: number; amount_received: number; expected_2x: number | null; status: string }
+interface PendingTxn { id: string; amount: number; status: string; payment_method: string | null; plan_name: string | null; created_at: string; utr_number: string | null }
 interface CompanyAsset {
   id: string; asset_name: string; symbol: string; coincap_id: string | null;
   entry_price: number; current_price: number; custom_current_price: number | null;
@@ -25,6 +26,7 @@ function Dashboard() {
   const nav = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [invs, setInvs] = useState<Investment[]>([]);
+  const [pendingTxns, setPendingTxns] = useState<PendingTxn[]>([]);
   const [companyAssets, setCompanyAssets] = useState<CompanyAsset[]>([]);
   const [topAssets, setTopAssets] = useState<CoinAsset[]>([]);
   const [live, setLive] = useState<Record<string, string>>({});
@@ -39,11 +41,15 @@ function Dashboard() {
       if (!user) { nav({ to: "/login" }); return; }
       const { data: p } = await supabase.from("profiles").select("id, had_id, full_name").eq("id", user.id).maybeSingle();
       setProfile(p as any);
-      const { data: i } = await supabase.from("investments").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+      const [{ data: i }, { data: ca }, { data: settings }, { data: tx }] = await Promise.all([
+        supabase.from("investments").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("trading_assets").select("*").eq("status", "active"),
+        supabase.from("app_settings").select("key, value"),
+        supabase.from("transactions").select("id, amount, status, payment_method, plan_name, created_at, utr_number").eq("user_id", user.id).in("status", ["pending", "verified"]).order("created_at", { ascending: false }).limit(10),
+      ]);
       setInvs((i as any) || []);
-      const { data: ca } = await supabase.from("trading_assets").select("*").eq("status", "active");
       setCompanyAssets((ca as any) || []);
-      const { data: settings } = await supabase.from("app_settings").select("key, value");
+      setPendingTxns(((tx as any) || []).filter((row: any) => row.status === "pending"));
       const map = new Map((settings || []).map((s: any) => [s.key, s.value]));
       setBanner(map.get("announcement_banner") || null);
       setMaintenance(map.get("maintenance_mode") === "true");
@@ -76,6 +82,11 @@ function Dashboard() {
           const { data } = await supabase.from("investments").select("*").eq("user_id", profile.id).order("created_at", { ascending: false });
           setInvs((data as any) || []);
         })
+      .on("postgres_changes", { event: "*", schema: "public", table: "transactions", filter: `user_id=eq.${profile.id}` },
+        async () => {
+          const { data } = await supabase.from("transactions").select("id, amount, status, payment_method, plan_name, created_at, utr_number").eq("user_id", profile.id).in("status", ["pending", "verified"]).order("created_at", { ascending: false }).limit(10);
+          setPendingTxns(((data as any) || []).filter((row: any) => row.status === "pending"));
+        })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" },
         (payload) => {
           const n = payload.new as any;
@@ -93,6 +104,7 @@ function Dashboard() {
     const pct = target > 0 ? Math.min(100, (received / target) * 100) : 0;
     return { invested, received, target, remaining, pct };
   }, [invs]);
+  const pendingTotal = useMemo(() => pendingTxns.reduce((sum, txn) => sum + Number(txn.amount), 0), [pendingTxns]);
   const activePlan = invs.find((i) => i.status === "active")?.plan_name ?? "—";
 
   if (maintenance) {
@@ -158,6 +170,28 @@ function Dashboard() {
             <div className="h-3 rounded-full bg-white/10 overflow-hidden">
               <div className="h-full bg-gradient-to-r from-gold to-amber-300" style={{ width: `${totals.pct}%` }} />
             </div>
+          </div>
+          <div className="mt-5 rounded-lg border border-amber-400/20 bg-amber-400/5 p-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-amber-200/80">Pending approval</p>
+                <p className="mt-1 font-serif text-2xl text-amber-200">₹{pendingTotal.toLocaleString("en-IN")}</p>
+              </div>
+              <span className="text-sm text-white/60">{pendingTxns.length} payment{pendingTxns.length === 1 ? "" : "s"} waiting for admin verification</span>
+            </div>
+            {pendingTxns.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {pendingTxns.slice(0, 3).map((txn) => (
+                  <div key={txn.id} className="flex items-center justify-between gap-3 rounded-md bg-navy/40 px-3 py-2 text-sm">
+                    <div>
+                      <div className="text-white">₹{Number(txn.amount).toLocaleString("en-IN")} <span className="text-white/50">· {(txn.plan_name || "starter").toUpperCase()}</span></div>
+                      <div className="text-xs text-white/50">{txn.payment_method || "Payment"} · {new Date(txn.created_at).toLocaleString()} {txn.utr_number ? `· UTR ${txn.utr_number}` : ""}</div>
+                    </div>
+                    <span className="rounded bg-amber-400/15 px-2 py-1 text-xs text-amber-200">Pending</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 

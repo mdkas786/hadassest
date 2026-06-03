@@ -17,6 +17,7 @@ import { Route as PayRouteImport } from './routes/pay'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as MarketsRouteImport } from './routes/markets'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as IncomeRouteImport } from './routes/income'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
@@ -29,6 +30,7 @@ import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
 import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminInvestmentsRouteImport } from './routes/admin.investments'
+import { Route as AdminIncomeRouteImport } from './routes/admin.income'
 import { Route as AdminAiRouteImport } from './routes/admin.ai'
 
 const RegisterRoute = RegisterRouteImport.update({
@@ -69,6 +71,11 @@ const MarketsRoute = MarketsRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IncomeRoute = IncomeRouteImport.update({
+  id: '/income',
+  path: '/income',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -131,6 +138,11 @@ const AdminInvestmentsRoute = AdminInvestmentsRouteImport.update({
   path: '/admin/investments',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIncomeRoute = AdminIncomeRouteImport.update({
+  id: '/admin/income',
+  path: '/admin/income',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminAiRoute = AdminAiRouteImport.update({
   id: '/admin/ai',
   path: '/admin/ai',
@@ -140,6 +152,7 @@ const AdminAiRoute = AdminAiRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/income': typeof IncomeRoute
   '/login': typeof LoginRoute
   '/markets': typeof MarketsRouteWithChildren
   '/notifications': typeof NotificationsRoute
@@ -149,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
   '/admin/ai': typeof AdminAiRoute
+  '/admin/income': typeof AdminIncomeRoute
   '/admin/investments': typeof AdminInvestmentsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -163,6 +177,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/income': typeof IncomeRoute
   '/login': typeof LoginRoute
   '/markets': typeof MarketsRouteWithChildren
   '/notifications': typeof NotificationsRoute
@@ -172,6 +187,7 @@ export interface FileRoutesByTo {
   '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
   '/admin/ai': typeof AdminAiRoute
+  '/admin/income': typeof AdminIncomeRoute
   '/admin/investments': typeof AdminInvestmentsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -187,6 +203,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/income': typeof IncomeRoute
   '/login': typeof LoginRoute
   '/markets': typeof MarketsRouteWithChildren
   '/notifications': typeof NotificationsRoute
@@ -196,6 +213,7 @@ export interface FileRoutesById {
   '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
   '/admin/ai': typeof AdminAiRoute
+  '/admin/income': typeof AdminIncomeRoute
   '/admin/investments': typeof AdminInvestmentsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -212,6 +230,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/income'
     | '/login'
     | '/markets'
     | '/notifications'
@@ -221,6 +240,7 @@ export interface FileRouteTypes {
     | '/referral'
     | '/register'
     | '/admin/ai'
+    | '/admin/income'
     | '/admin/investments'
     | '/admin/login'
     | '/admin/notifications'
@@ -235,6 +255,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/income'
     | '/login'
     | '/markets'
     | '/notifications'
@@ -244,6 +265,7 @@ export interface FileRouteTypes {
     | '/referral'
     | '/register'
     | '/admin/ai'
+    | '/admin/income'
     | '/admin/investments'
     | '/admin/login'
     | '/admin/notifications'
@@ -258,6 +280,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/income'
     | '/login'
     | '/markets'
     | '/notifications'
@@ -267,6 +290,7 @@ export interface FileRouteTypes {
     | '/referral'
     | '/register'
     | '/admin/ai'
+    | '/admin/income'
     | '/admin/investments'
     | '/admin/login'
     | '/admin/notifications'
@@ -282,6 +306,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
+  IncomeRoute: typeof IncomeRoute
   LoginRoute: typeof LoginRoute
   MarketsRoute: typeof MarketsRouteWithChildren
   NotificationsRoute: typeof NotificationsRoute
@@ -291,6 +316,7 @@ export interface RootRouteChildren {
   ReferralRoute: typeof ReferralRoute
   RegisterRoute: typeof RegisterRoute
   AdminAiRoute: typeof AdminAiRoute
+  AdminIncomeRoute: typeof AdminIncomeRoute
   AdminInvestmentsRoute: typeof AdminInvestmentsRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminNotificationsRoute: typeof AdminNotificationsRoute
@@ -358,6 +384,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/income': {
+      id: '/income'
+      path: '/income'
+      fullPath: '/income'
+      preLoaderRoute: typeof IncomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -444,6 +477,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminInvestmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/income': {
+      id: '/admin/income'
+      path: '/admin/income'
+      fullPath: '/admin/income'
+      preLoaderRoute: typeof AdminIncomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/ai': {
       id: '/admin/ai'
       path: '/admin/ai'
@@ -468,6 +508,7 @@ const MarketsRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
+  IncomeRoute: IncomeRoute,
   LoginRoute: LoginRoute,
   MarketsRoute: MarketsRouteWithChildren,
   NotificationsRoute: NotificationsRoute,
@@ -477,6 +518,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReferralRoute: ReferralRoute,
   RegisterRoute: RegisterRoute,
   AdminAiRoute: AdminAiRoute,
+  AdminIncomeRoute: AdminIncomeRoute,
   AdminInvestmentsRoute: AdminInvestmentsRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminNotificationsRoute: AdminNotificationsRoute,

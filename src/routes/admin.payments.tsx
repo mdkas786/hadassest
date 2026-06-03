@@ -100,6 +100,46 @@ function AdminPayments() {
         body: `${fmtInr(amount)} aapke portfolio mein add ho gayi. Plan: ${String(finalPlan).toUpperCase()} @ ${finalRate}% monthly.`,
         notif_type: "success",
       });
+
+      // SPONSOR INCOME — credit 5% to referrer (if any)
+      try {
+        const { data: refereeProfile } = await supabase.from("profiles")
+          .select("referred_by, had_id").eq("id", t.user_id).maybeSingle();
+        const refCode = (refereeProfile as any)?.referred_by;
+        if (refCode && refCode !== t.had_id) {
+          const { data: sponsor } = await supabase.from("profiles")
+            .select("id, had_id").eq("had_id", refCode).maybeSingle();
+          if (sponsor) {
+            const sponsorAmount = Math.round(amount * 0.05);
+            const { data: inserted } = await supabase.from("sponsor_income").insert({
+              earner_user_id: (sponsor as any).id,
+              earner_had_id: (sponsor as any).had_id,
+              referred_user_id: t.user_id,
+              referred_had_id: t.had_id,
+              transaction_id: t.id,
+              investment_amount: amount,
+              sponsor_amount: sponsorAmount,
+              status: "pending",
+            } as any).select().single();
+            if (inserted) {
+              // Bump running total on referrer's investment row
+              const { data: invRow } = await supabase.from("investments")
+                .select("id, sponsor_income_total").eq("user_id", (sponsor as any).id).maybeSingle();
+              if (invRow) {
+                await supabase.from("investments").update({
+                  sponsor_income_total: Number((invRow as any).sponsor_income_total || 0) + sponsorAmount,
+                }).eq("id", (invRow as any).id);
+              }
+              await supabase.from("notifications").insert({
+                had_id: (sponsor as any).had_id,
+                title: "Sponsor Income Earned 🎉",
+                body: `Aapke referral ${t.had_id} ne ${fmtInr(amount)} invest kiya. Aapko ${fmtInr(sponsorAmount)} (5%) sponsor income mila.`,
+                notif_type: "success",
+              });
+            }
+          }
+        }
+      } catch (e) { console.warn("sponsor income failed", e); }
     }
     toast.success("Approved");
     load();

@@ -12,6 +12,8 @@ function Referral() {
   const nav = useNavigate();
   const [hadId, setHadId] = useState<string>("");
   const [count, setCount] = useState(0);
+  const [sponsorTotal, setSponsorTotal] = useState(0);
+  const [sponsorCount, setSponsorCount] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -21,11 +23,14 @@ function Referral() {
       const id = (p as any)?.had_id || "";
       setHadId(id);
       if (id) {
-        const { count: c } = await supabase
-          .from("profiles")
-          .select("id", { count: "exact", head: true })
-          .eq("referred_by", id);
+        const [{ count: c }, { data: si }] = await Promise.all([
+          supabase.from("profiles").select("id", { count: "exact", head: true }).eq("referred_by", id),
+          supabase.from("sponsor_income").select("sponsor_amount").eq("earner_user_id", user.id),
+        ]);
         setCount(c || 0);
+        const rows = (si as any[]) || [];
+        setSponsorCount(rows.length);
+        setSponsorTotal(rows.reduce((a, b) => a + Number(b.sponsor_amount), 0));
       }
     })();
   }, [nav]);
@@ -57,10 +62,23 @@ function Referral() {
           </div>
           <p className="text-xs text-white/50 mt-4 break-all">{link}</p>
         </div>
-        <div className="rounded-xl border border-gold/20 bg-navy-light/30 p-6">
-          <p className="text-white/70 text-sm">Aapke code se joined</p>
-          <p className="font-serif text-4xl text-gold mt-1">{count}</p>
+        <div className="grid sm:grid-cols-3 gap-4">
+          <div className="rounded-xl border border-gold/20 bg-navy-light/30 p-5">
+            <p className="text-white/70 text-xs uppercase tracking-widest">Total Referred</p>
+            <p className="font-serif text-3xl text-gold mt-1">{count}</p>
+          </div>
+          <div className="rounded-xl border border-gold/20 bg-navy-light/30 p-5">
+            <p className="text-white/70 text-xs uppercase tracking-widest">Sponsor Income</p>
+            <p className="font-serif text-3xl text-gold mt-1">₹{sponsorTotal.toLocaleString("en-IN")}</p>
+            <p className="text-xs text-white/50 mt-1">from {sponsorCount} verified payment(s)</p>
+          </div>
+          <div className={`rounded-xl border p-5 ${count >= 2 ? "border-emerald-400/40 bg-emerald-400/5" : "border-amber-400/40 bg-amber-400/5"}`}>
+            <p className="text-white/70 text-xs uppercase tracking-widest">Partner Status</p>
+            <p className="font-serif text-2xl text-gold mt-1">{count >= 2 ? "Active" : `Need ${2 - count} more`}</p>
+            <p className="text-xs text-white/50 mt-1">2 directs → 10% ROI bonus monthly</p>
+          </div>
         </div>
+        <Link to="/income" className="block text-sm text-gold hover:underline">View full income history →</Link>
       </main>
     </div>
   );

@@ -119,8 +119,10 @@ export type Database = {
           had_id: string
           id: string
           notes: string | null
+          partner_income_total: number
           plan_name: Database["public"]["Enums"]["plan_type"]
           plan_rate: number
+          sponsor_income_total: number
           start_date: string
           status: Database["public"]["Enums"]["investment_status"]
           updated_at: string
@@ -134,8 +136,10 @@ export type Database = {
           had_id: string
           id?: string
           notes?: string | null
+          partner_income_total?: number
           plan_name?: Database["public"]["Enums"]["plan_type"]
           plan_rate?: number
+          sponsor_income_total?: number
           start_date?: string
           status?: Database["public"]["Enums"]["investment_status"]
           updated_at?: string
@@ -149,8 +153,10 @@ export type Database = {
           had_id?: string
           id?: string
           notes?: string | null
+          partner_income_total?: number
           plan_name?: Database["public"]["Enums"]["plan_type"]
           plan_rate?: number
+          sponsor_income_total?: number
           start_date?: string
           status?: Database["public"]["Enums"]["investment_status"]
           updated_at?: string
@@ -209,6 +215,57 @@ export type Database = {
           notif_type?: string
           read_at?: string | null
           title?: string
+        }
+        Relationships: []
+      }
+      partner_income: {
+        Row: {
+          created_at: string
+          direct1_had_id: string | null
+          direct1_roi: number
+          direct2_had_id: string | null
+          direct2_roi: number
+          earner_had_id: string
+          earner_user_id: string
+          id: string
+          notes: string | null
+          paid_at: string | null
+          paid_by: string | null
+          period_month: string
+          status: string
+          total_bonus: number
+        }
+        Insert: {
+          created_at?: string
+          direct1_had_id?: string | null
+          direct1_roi?: number
+          direct2_had_id?: string | null
+          direct2_roi?: number
+          earner_had_id: string
+          earner_user_id: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          period_month: string
+          status?: string
+          total_bonus?: number
+        }
+        Update: {
+          created_at?: string
+          direct1_had_id?: string | null
+          direct1_roi?: number
+          direct2_had_id?: string | null
+          direct2_roi?: number
+          earner_had_id?: string
+          earner_user_id?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          period_month?: string
+          status?: string
+          total_bonus?: number
         }
         Relationships: []
       }
@@ -302,6 +359,54 @@ export type Database = {
           paid_by?: string | null
           txn_ref?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      sponsor_income: {
+        Row: {
+          created_at: string
+          earner_had_id: string
+          earner_user_id: string
+          id: string
+          investment_amount: number
+          notes: string | null
+          paid_at: string | null
+          paid_by: string | null
+          referred_had_id: string
+          referred_user_id: string
+          sponsor_amount: number
+          status: string
+          transaction_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          earner_had_id: string
+          earner_user_id: string
+          id?: string
+          investment_amount?: number
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          referred_had_id: string
+          referred_user_id: string
+          sponsor_amount?: number
+          status?: string
+          transaction_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          earner_had_id?: string
+          earner_user_id?: string
+          id?: string
+          investment_amount?: number
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          referred_had_id?: string
+          referred_user_id?: string
+          sponsor_amount?: number
+          status?: string
+          transaction_id?: string | null
         }
         Relationships: []
       }

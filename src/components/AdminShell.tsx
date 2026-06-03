@@ -7,6 +7,7 @@ const nav = [
   { to: "/admin/users", label: "Users" },
   { to: "/admin/investments", label: "Investments" },
   { to: "/admin/payments", label: "Payment Verification" },
+  { to: "/admin/income", label: "Income Management" },
   { to: "/admin/trading", label: "Trading Control" },
   { to: "/admin/notifications", label: "Notifications" },
   { to: "/admin/wallets", label: "Wallets" },

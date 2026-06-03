@@ -10,6 +10,8 @@ import {
 
 import appCss from "../styles.css?url";
 import { MaintenanceGate } from "@/components/MaintenanceGate";
+import { MobileNav } from "@/components/MobileNav";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -87,10 +89,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/LwZTAUxmweVjSozIzeoLFNfzzk32/social-images/social-1779911911390-1000340856.webp" },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "stylesheet", href: appCss },
+      { rel: "manifest", href: "/manifest.json" },
+      { rel: "apple-touch-icon", href: "/favicon.ico" },
     ],
   }),
   shellComponent: RootShell,
@@ -121,6 +122,8 @@ function RootComponent() {
       <MaintenanceGate>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
+        <MobileNav />
+        <Toaster />
       </MaintenanceGate>
     </QueryClientProvider>
   );

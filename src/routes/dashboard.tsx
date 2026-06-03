@@ -228,10 +228,11 @@ function Dashboard() {
         </section>
 
         {/* Quick actions */}
-        <section className="grid sm:grid-cols-3 gap-4">
+        <section className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <ActionCard to="/pay" title="Make payment" desc="Send investment via UPI or crypto." />
+          <ActionCard to="/income" title="My Income" desc="Sponsor & partner bonuses." />
           <ActionCard to="/markets" title="Browse markets" desc="Live crypto and company holdings." />
-          <ActionCard to="/referral" title="Refer & earn" desc="Share your code with friends." />
+          <ActionCard to="/referral" title="Refer & earn" desc="5% sponsor income on each referral." />
         </section>
       </main>
     </div>

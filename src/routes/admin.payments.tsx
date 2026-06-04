@@ -189,7 +189,7 @@ function AdminPayments() {
         rows.length === 0 ? <div className="text-white/60">No {tab} transactions.</div> :
         <div className="grid gap-3">
           {rows.map((t) => (
-            <PaymentCard key={t.id} t={t} onApprove={() => approve(t)} onReject={() => setReject({ id: t.id, reason: "" })} screenshotUrl={screenshotUrl} />
+            <PaymentCard key={t.id} t={t} onApprove={() => approve(t)} onReject={() => setReject({ id: t.id, reason: "" })} onDelete={() => doDelete(t)} screenshotUrl={screenshotUrl} />
           ))}
         </div>
       }

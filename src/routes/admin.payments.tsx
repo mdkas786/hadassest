@@ -160,6 +160,14 @@ function AdminPayments() {
     load();
   }
 
+  async function doDelete(t: Txn) {
+    if (!confirm(`Delete this ${t.type} of ${fmtInr(Number(t.amount))} for ${t.had_id}? This cannot be undone.`)) return;
+    const { error } = await supabase.from("transactions").delete().eq("id", t.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Transaction deleted");
+    load();
+  }
+
   async function screenshotUrl(path: string | null) {
     if (!path) return null;
     if (path.startsWith("http")) return path;

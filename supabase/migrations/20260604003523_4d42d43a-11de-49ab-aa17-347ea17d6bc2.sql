@@ -1,0 +1,1 @@
+CREATE POLICY "Admins delete txns" ON public.transactions FOR DELETE TO authenticated USING (public.has_role(auth.uid(), 'admin'::public.app_role));

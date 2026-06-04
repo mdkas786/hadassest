@@ -160,6 +160,14 @@ function AdminPayments() {
     load();
   }
 
+  async function doDelete(t: Txn) {
+    if (!confirm(`Delete this ${t.type} of ${fmtInr(Number(t.amount))} for ${t.had_id}? This cannot be undone.`)) return;
+    const { error } = await supabase.from("transactions").delete().eq("id", t.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Transaction deleted");
+    load();
+  }
+
   async function screenshotUrl(path: string | null) {
     if (!path) return null;
     if (path.startsWith("http")) return path;
@@ -181,7 +189,7 @@ function AdminPayments() {
         rows.length === 0 ? <div className="text-white/60">No {tab} transactions.</div> :
         <div className="grid gap-3">
           {rows.map((t) => (
-            <PaymentCard key={t.id} t={t} onApprove={() => approve(t)} onReject={() => setReject({ id: t.id, reason: "" })} screenshotUrl={screenshotUrl} />
+            <PaymentCard key={t.id} t={t} onApprove={() => approve(t)} onReject={() => setReject({ id: t.id, reason: "" })} onDelete={() => doDelete(t)} screenshotUrl={screenshotUrl} />
           ))}
         </div>
       }
@@ -203,8 +211,8 @@ function AdminPayments() {
   );
 }
 
-function PaymentCard({ t, onApprove, onReject, screenshotUrl }:
-  { t: Txn; onApprove: () => void; onReject: () => void; screenshotUrl: (p: string | null) => Promise<string | null> }) {
+function PaymentCard({ t, onApprove, onReject, onDelete, screenshotUrl }:
+  { t: Txn; onApprove: () => void; onReject: () => void; onDelete: () => void; screenshotUrl: (p: string | null) => Promise<string | null> }) {
   const [url, setUrl] = useState<string | null>(null);
   const [name, setName] = useState<string>("");
   useEffect(() => { screenshotUrl(t.screenshot_url).then(setUrl); }, [t.screenshot_url]);
@@ -231,9 +239,15 @@ function PaymentCard({ t, onApprove, onReject, screenshotUrl }:
         {t.notes && <div className="text-sm text-white/70 mt-2">{t.notes}</div>}
         {t.rejection_reason && <div className="text-sm text-red-300 mt-2">Rejected: {t.rejection_reason}</div>}
         {t.status === "pending" && (
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-2 mt-4 flex-wrap">
             <button onClick={onApprove} className="px-4 py-2 text-sm rounded bg-emerald-500/80 text-white hover:bg-emerald-500">Approve</button>
             <button onClick={onReject} className="px-4 py-2 text-sm rounded border border-red-400/40 text-red-300 hover:bg-red-500/10">Reject</button>
+            <button onClick={onDelete} className="px-4 py-2 text-sm rounded border border-white/20 text-white/70 hover:bg-white/10">Delete</button>
+          </div>
+        )}
+        {t.status !== "pending" && (
+          <div className="flex gap-2 mt-4">
+            <button onClick={onDelete} className="px-3 py-1.5 text-xs rounded border border-red-400/40 text-red-300 hover:bg-red-500/10">Delete record</button>
           </div>
         )}
       </div>

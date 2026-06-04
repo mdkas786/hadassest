@@ -184,12 +184,25 @@ function InvestmentModal({ inv, prof, onClose, onChanged }: { inv: Inv; prof: Pr
           <div>
             <p className="font-mono text-gold text-sm">{inv.had_id}</p>
             <h2 className="font-serif text-2xl">{prof?.full_name || "—"}</h2>
-            <div className="flex gap-2 mt-1">
+            <div className="flex gap-2 mt-1 flex-wrap">
               <span className="text-xs px-2 py-0.5 rounded bg-gold/15 text-gold capitalize">{inv.plan_name} ({rate}%)</span>
               <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-white/70 capitalize">{inv.status}</span>
             </div>
           </div>
-          <button onClick={onClose} className="text-white/60 hover:text-gold">✕</button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                if (!confirm(`Delete investment for ${inv.had_id}? This removes the investment record (transactions and returns are kept).`)) return;
+                const { error } = await supabase.from("investments").delete().eq("id", inv.id);
+                if (error) { toast.error(error.message); return; }
+                toast.success("Investment deleted");
+                onClose();
+                onChanged();
+              }}
+              className="px-3 py-1.5 text-xs rounded border border-red-400/40 text-red-300 hover:bg-red-500/10"
+            >Delete investment</button>
+            <button onClick={onClose} className="text-white/60 hover:text-gold">✕</button>
+          </div>
         </div>
 
         <div className="grid sm:grid-cols-4 gap-3">

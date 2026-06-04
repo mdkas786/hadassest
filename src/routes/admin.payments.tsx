@@ -211,8 +211,8 @@ function AdminPayments() {
   );
 }
 
-function PaymentCard({ t, onApprove, onReject, screenshotUrl }:
-  { t: Txn; onApprove: () => void; onReject: () => void; screenshotUrl: (p: string | null) => Promise<string | null> }) {
+function PaymentCard({ t, onApprove, onReject, onDelete, screenshotUrl }:
+  { t: Txn; onApprove: () => void; onReject: () => void; onDelete: () => void; screenshotUrl: (p: string | null) => Promise<string | null> }) {
   const [url, setUrl] = useState<string | null>(null);
   const [name, setName] = useState<string>("");
   useEffect(() => { screenshotUrl(t.screenshot_url).then(setUrl); }, [t.screenshot_url]);

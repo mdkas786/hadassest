@@ -19,7 +19,7 @@ interface PendingTxn { id: string; amount: number; status: string; payment_metho
 interface CompanyAsset {
   id: string; asset_name: string; symbol: string; coincap_id: string | null;
   entry_price: number; current_price: number; custom_current_price: number | null;
-  use_manual_price: boolean; allocation_percent: number; admin_note: string | null; risk_level: string;
+  use_manual_price: boolean; allocation_percent: number; risk_level: string;
 }
 
 function Dashboard() {
@@ -43,7 +43,7 @@ function Dashboard() {
       setProfile(p as any);
       const [{ data: i }, { data: ca }, { data: settings }, { data: tx }] = await Promise.all([
         supabase.from("investments").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
-        supabase.from("trading_assets").select("*").eq("status", "active"),
+        supabase.from("trading_assets_public").select("*").eq("status", "active"),
         supabase.from("app_settings").select("key, value"),
         supabase.from("transactions").select("id, amount, status, payment_method, plan_name, created_at, utr_number").eq("user_id", user.id).in("status", ["pending", "verified"]).order("created_at", { ascending: false }).limit(10),
       ]);
@@ -219,7 +219,6 @@ function Dashboard() {
                     </div>
                     <p className="text-sm text-white/70 mt-1 tabular-nums">{fmtUsd(cur)} <span className="text-white/50">/ {fmtInr(cur, inrRate)}</span></p>
                     <p className="text-xs text-white/50 mt-1">Allocation {a.allocation_percent}% · Risk {a.risk_level}</p>
-                    {a.admin_note && <p className="mt-3 text-xs text-white/70 italic border-l-2 border-gold/40 pl-2">"{a.admin_note}"</p>}
                   </div>
                 );
               })}

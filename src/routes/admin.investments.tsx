@@ -84,8 +84,19 @@ function AdminInvestments() {
         <Card label="Remaining" value={fmtInr(totals.remaining)} accent />
       </div>
 
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search HAD ID or name…"
-        className="mb-4 w-full md:w-96 rounded-md bg-navy-light border border-gold/20 px-3 py-2 outline-none focus:border-gold" />
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search HAD ID or name…"
+          className="w-full md:w-96 rounded-md bg-navy-light border border-gold/20 px-3 py-2 outline-none focus:border-gold" />
+        <div className="ml-auto flex items-center gap-2">
+          <input type="month" value={roiMonth} onChange={(e) => setRoiMonth(e.target.value)}
+            className="rounded bg-navy-light border border-gold/20 text-sm px-3 py-2" />
+          <button onClick={runBulkRoi} disabled={roiBusy}
+            className="px-4 py-2 rounded bg-gold text-navy font-medium text-sm disabled:opacity-50">
+            {roiBusy ? "Processing…" : "Bulk Credit Monthly ROI"}
+          </button>
+        </div>
+      </div>
+
 
       <div className="overflow-x-auto rounded-xl border border-gold/20">
         <table className="w-full text-sm">

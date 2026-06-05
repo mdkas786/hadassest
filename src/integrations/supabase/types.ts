@@ -615,6 +615,7 @@ export type Database = {
       }
     }
     Functions: {
+      admin_delete_user: { Args: { _user_id: string }; Returns: undefined }
       check_had_id: {
         Args: { p_had_id: string }
         Returns: {
@@ -656,6 +657,13 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      process_monthly_roi: {
+        Args: { _month: string }
+        Returns: {
+          processed: number
+          total_amount: number
+        }[]
       }
       register_had_user: {
         Args: {

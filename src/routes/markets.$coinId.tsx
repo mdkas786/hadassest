@@ -41,7 +41,6 @@ function CoinDetail() {
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [inrRate, setInrRate] = useState(83);
   const [companyEntry, setCompanyEntry] = useState<number | null>(null);
-  const [companyNote, setCompanyNote] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,8 +56,8 @@ function CoinDetail() {
     setAsset(null); setErr(null);
     getAssetById(coinId).then((a) => { setAsset(a); setLivePrice(Number(a.priceUsd)); }).catch((e) => setErr(String(e.message || e)));
     getInrRate().then(setInrRate);
-    supabase.from("trading_assets").select("entry_price, admin_note").eq("coincap_id", coinId).eq("status", "active").maybeSingle()
-      .then(({ data }) => { if (data) { setCompanyEntry(Number((data as any).entry_price)); setCompanyNote((data as any).admin_note); } });
+    supabase.from("trading_assets_public").select("entry_price").eq("coincap_id", coinId).eq("status", "active").maybeSingle()
+      .then(({ data }) => { if (data) { setCompanyEntry(Number((data as any).entry_price)); } });
   }, [ready, coinId]);
 
   useEffect(() => {
@@ -181,7 +180,6 @@ function CoinDetail() {
                 Factors: 24h momentum {fmtPct(change24)} · {period.key} trend {fmtPct(stats.trend7d)}
                 {companyEntry !== null && livePrice !== null && <> · entry gap {fmtPct(((livePrice-companyEntry)/companyEntry)*100)}</>}.
               </p>
-              {companyNote && <p className="mt-2 text-sm text-gold/80 italic">Admin says: "{companyNote}"</p>}
             </div>
           </>
         )}

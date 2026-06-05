@@ -36,7 +36,6 @@ interface TradingAsset {
   risk_level: string;
   expected_duration_days: number;
   profit_target_percent: number;
-  admin_note: string | null;
   asset_category: string;
 }
 
@@ -68,7 +67,7 @@ function MarketsPage() {
     if (!ready) return;
     getInrRate().then(setInrRate);
     supabase
-      .from("trading_assets")
+      .from("trading_assets_public")
       .select("*")
       .eq("status", "active")
       .then(({ data }) => setCompanyAssets((data as any) || []));
@@ -214,9 +213,6 @@ function MarketsPage() {
                       <Cell label="Risk" value={a.risk_level} />
                       <Cell label="Target" value={`${a.profit_target_percent}% in ${a.expected_duration_days}d`} />
                     </dl>
-                    {a.admin_note && (
-                      <p className="mt-4 text-sm text-white/70 italic border-l-2 border-gold/50 pl-3">"{a.admin_note}"</p>
-                    )}
                     {a.coincap_id && (
                       <Link to="/markets/$coinId" params={{ coinId: a.coincap_id }} className="mt-4 inline-block text-sm text-gold hover:underline">
                         Full analysis →

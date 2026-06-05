@@ -51,6 +51,17 @@ function AdminIncome() {
     if (error) toast.error(error.message); else { toast.success("Marked paid"); load(); }
   }
 
+  async function deleteIncome(table: "sponsor_income" | "partner_income", id: string) {
+    if (!confirm("Delete this income record? This cannot be undone.")) return;
+    const { error } = await supabase.from(table).delete().eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Income record deleted");
+    load();
+  }
+
   async function processPartnerBonus() {
     setBusy(true);
     try {
@@ -149,7 +160,10 @@ function AdminIncome() {
                   <td className="p-3 text-right"><span className={`text-xs px-2 py-0.5 rounded ${r.status === "paid" ? "bg-emerald-400/15 text-emerald-300" : "bg-amber-400/15 text-amber-200"}`}>{r.status}</span></td>
                   <td className="p-3 text-right text-xs text-white/50">{new Date(r.created_at).toLocaleDateString()}</td>
                   <td className="p-3 text-right">
-                    {r.status === "pending" && <button onClick={() => markPaid("sponsor_income", r.id)} className="text-xs px-3 py-1 rounded bg-emerald-500/80 text-white">Mark Paid</button>}
+                    <div className="flex justify-end gap-2 flex-wrap">
+                      {r.status === "pending" && <button onClick={() => markPaid("sponsor_income", r.id)} className="text-xs px-3 py-1 rounded bg-emerald-500/80 text-white">Mark Paid</button>}
+                      <button onClick={() => deleteIncome("sponsor_income", r.id)} className="text-xs px-3 py-1 rounded border border-red-400/40 text-red-300">Delete</button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -171,7 +185,10 @@ function AdminIncome() {
                   <td className="p-3 text-right tabular-nums text-gold">{fmtInr(r.total_bonus)}</td>
                   <td className="p-3 text-right"><span className={`text-xs px-2 py-0.5 rounded ${r.status === "paid" ? "bg-emerald-400/15 text-emerald-300" : "bg-amber-400/15 text-amber-200"}`}>{r.status}</span></td>
                   <td className="p-3 text-right">
-                    {r.status === "pending" && <button onClick={() => markPaid("partner_income", r.id)} className="text-xs px-3 py-1 rounded bg-emerald-500/80 text-white">Mark Paid</button>}
+                    <div className="flex justify-end gap-2 flex-wrap">
+                      {r.status === "pending" && <button onClick={() => markPaid("partner_income", r.id)} className="text-xs px-3 py-1 rounded bg-emerald-500/80 text-white">Mark Paid</button>}
+                      <button onClick={() => deleteIncome("partner_income", r.id)} className="text-xs px-3 py-1 rounded border border-red-400/40 text-red-300">Delete</button>
+                    </div>
                   </td>
                 </tr>
               ))}

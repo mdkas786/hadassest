@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/had-logo.jpg";
+import { checkAdminRole, normalizeAdminEmail } from "@/lib/adminAuth";
 
 export const Route = createFileRoute("/admin/login")({
   head: () => ({ meta: [{ title: "Admin — H.A.D." }] }),
@@ -18,13 +19,14 @@ function AdminLogin() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null); setLoading(true);
+    const safeEmail = normalizeAdminEmail(email);
 
     // Rate limit
     const since = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     const { data: recent } = await supabase
       .from("login_attempts")
       .select("id, success")
-      .eq("identifier", email)
+      .eq("identifier", safeEmail)
       .gte("attempted_at", since)
       .order("attempted_at", { ascending: false })
       .limit(5);
@@ -35,23 +37,22 @@ function AdminLogin() {
       return;
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email: safeEmail, password });
     if (error || !data.user) {
-      await supabase.from("login_attempts").insert({ identifier: email, success: false });
+      await supabase.from("login_attempts").insert({ identifier: safeEmail, success: false });
       setLoading(false);
       setErr("Access Denied. Unauthorized.");
       return;
     }
-    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
-    const isAdmin = (roles || []).some((r) => r.role === "admin");
+    const isAdmin = await checkAdminRole(data.user.id);
     if (!isAdmin) {
       await supabase.auth.signOut();
-      await supabase.from("login_attempts").insert({ identifier: email, success: false });
+      await supabase.from("login_attempts").insert({ identifier: safeEmail, success: false });
       setLoading(false);
       setErr("Access Denied. Unauthorized.");
       return;
     }
-    await supabase.from("login_attempts").insert({ identifier: email, success: true });
+    await supabase.from("login_attempts").insert({ identifier: safeEmail, success: true });
     setLoading(false);
     nav({ to: "/admin" });
   }

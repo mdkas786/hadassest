@@ -75,6 +75,20 @@ function Dashboard() {
     return subscribeRealTimePrice(ids, (p) => setLive((prev) => ({ ...prev, ...p })));
   }, [companyAssets, topAssets]);
 
+  useEffect(() => {
+    const ch = supabase
+      .channel("dashboard_trading_assets")
+      .on("postgres_changes", { event: "*", schema: "public", table: "trading_assets" }, async () => {
+        const { data } = await supabase.from("trading_assets_public").select("*").eq("status", "active");
+        setCompanyAssets((data as any) || []);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, []);
+
   // Realtime: investments + notifications
   useEffect(() => {
     if (!profile) return;

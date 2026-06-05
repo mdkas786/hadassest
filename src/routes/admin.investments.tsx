@@ -25,6 +25,21 @@ function AdminInvestments() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Inv | null>(null);
   const [q, setQ] = useState("");
+  const [roiMonth, setRoiMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [roiBusy, setRoiBusy] = useState(false);
+
+  async function runBulkRoi() {
+    if (!confirm(`Credit ${roiMonth} monthly ROI to ALL active investments? Already-processed ones will be skipped.`)) return;
+    setRoiBusy(true);
+    try {
+      const { data, error } = await supabase.rpc("process_monthly_roi" as any, { _month: roiMonth });
+      if (error) throw error;
+      const row = (data as any)?.[0] || {};
+      toast.success(`Credited ${row.processed || 0} investors · ${fmtInr(Number(row.total_amount || 0))} total`);
+      load();
+    } catch (e: any) { toast.error(e.message); } finally { setRoiBusy(false); }
+  }
+
 
   async function load() {
     setLoading(true);

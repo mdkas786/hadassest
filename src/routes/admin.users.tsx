@@ -34,14 +34,9 @@ function AdminUsers() {
   }
 
   async function doDelete(p: Profile) {
-    // Cascading manual delete (no auth.users delete because that needs service role)
-    const r1 = await supabase.from("transactions").delete().eq("had_id", p.had_id);
-    const r2 = await supabase.from("investments").delete().eq("had_id", p.had_id);
-    const r3 = await supabase.from("notifications").delete().eq("had_id", p.had_id);
-    const r4 = await supabase.from("return_payments").delete().eq("had_id", p.had_id);
-    const r5 = await supabase.from("profiles").delete().eq("id", p.id);
-    if (r5.error) { toast.error(r5.error.message); return; }
-    toast.success(`User ${p.had_id} deleted`);
+    const { error } = await supabase.rpc("admin_delete_user" as any, { _user_id: p.id });
+    if (error) { toast.error(error.message); return; }
+    toast.success(`User ${p.had_id} fully deleted from all areas`);
     setDel(null);
     load();
   }

@@ -2,6 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
+import { checkAdminRole } from "@/lib/adminAuth";
 
 const nav = [
   { to: "/admin", label: "Dashboard" },
@@ -26,8 +27,8 @@ export function AdminShell({ title, children }: { title: string; children: React
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { navigate({ to: "/admin/login" }); return; }
-      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
-      if (!(roles || []).some((r) => r.role === "admin")) { navigate({ to: "/admin/login" }); return; }
+      const isAdmin = await checkAdminRole(user.id);
+      if (!isAdmin) { navigate({ to: "/admin/login" }); return; }
       setOk(true);
     })();
   }, [navigate]);

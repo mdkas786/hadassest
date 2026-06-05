@@ -556,7 +556,63 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      trading_assets_public: {
+        Row: {
+          allocation_percent: number | null
+          asset_category: string | null
+          asset_name: string | null
+          coincap_id: string | null
+          created_at: string | null
+          current_price: number | null
+          custom_current_price: number | null
+          entry_price: number | null
+          expected_duration_days: number | null
+          id: string | null
+          profit_target_percent: number | null
+          risk_level: Database["public"]["Enums"]["risk_level"] | null
+          status: Database["public"]["Enums"]["asset_status"] | null
+          symbol: string | null
+          updated_at: string | null
+          use_manual_price: boolean | null
+        }
+        Insert: {
+          allocation_percent?: number | null
+          asset_category?: string | null
+          asset_name?: string | null
+          coincap_id?: string | null
+          created_at?: string | null
+          current_price?: number | null
+          custom_current_price?: number | null
+          entry_price?: number | null
+          expected_duration_days?: number | null
+          id?: string | null
+          profit_target_percent?: number | null
+          risk_level?: Database["public"]["Enums"]["risk_level"] | null
+          status?: Database["public"]["Enums"]["asset_status"] | null
+          symbol?: string | null
+          updated_at?: string | null
+          use_manual_price?: boolean | null
+        }
+        Update: {
+          allocation_percent?: number | null
+          asset_category?: string | null
+          asset_name?: string | null
+          coincap_id?: string | null
+          created_at?: string | null
+          current_price?: number | null
+          custom_current_price?: number | null
+          entry_price?: number | null
+          expected_duration_days?: number | null
+          id?: string | null
+          profit_target_percent?: number | null
+          risk_level?: Database["public"]["Enums"]["risk_level"] | null
+          status?: Database["public"]["Enums"]["asset_status"] | null
+          symbol?: string | null
+          updated_at?: string | null
+          use_manual_price?: boolean | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       check_had_id: {

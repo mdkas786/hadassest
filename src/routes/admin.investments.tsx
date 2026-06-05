@@ -25,6 +25,21 @@ function AdminInvestments() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Inv | null>(null);
   const [q, setQ] = useState("");
+  const [roiMonth, setRoiMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [roiBusy, setRoiBusy] = useState(false);
+
+  async function runBulkRoi() {
+    if (!confirm(`Credit ${roiMonth} monthly ROI to ALL active investments? Already-processed ones will be skipped.`)) return;
+    setRoiBusy(true);
+    try {
+      const { data, error } = await supabase.rpc("process_monthly_roi" as any, { _month: roiMonth });
+      if (error) throw error;
+      const row = (data as any)?.[0] || {};
+      toast.success(`Credited ${row.processed || 0} investors · ${fmtInr(Number(row.total_amount || 0))} total`);
+      load();
+    } catch (e: any) { toast.error(e.message); } finally { setRoiBusy(false); }
+  }
+
 
   async function load() {
     setLoading(true);
@@ -69,8 +84,19 @@ function AdminInvestments() {
         <Card label="Remaining" value={fmtInr(totals.remaining)} accent />
       </div>
 
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search HAD ID or name…"
-        className="mb-4 w-full md:w-96 rounded-md bg-navy-light border border-gold/20 px-3 py-2 outline-none focus:border-gold" />
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search HAD ID or name…"
+          className="w-full md:w-96 rounded-md bg-navy-light border border-gold/20 px-3 py-2 outline-none focus:border-gold" />
+        <div className="ml-auto flex items-center gap-2">
+          <input type="month" value={roiMonth} onChange={(e) => setRoiMonth(e.target.value)}
+            className="rounded bg-navy-light border border-gold/20 text-sm px-3 py-2" />
+          <button onClick={runBulkRoi} disabled={roiBusy}
+            className="px-4 py-2 rounded bg-gold text-navy font-medium text-sm disabled:opacity-50">
+            {roiBusy ? "Processing…" : "Bulk Credit Monthly ROI"}
+          </button>
+        </div>
+      </div>
+
 
       <div className="overflow-x-auto rounded-xl border border-gold/20">
         <table className="w-full text-sm">

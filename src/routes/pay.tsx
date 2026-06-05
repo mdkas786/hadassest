@@ -123,13 +123,29 @@ function PayPage() {
           <input type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)}
             placeholder="50000" className="w-full mt-2 bg-navy border border-gold/25 rounded-md px-4 py-3 text-2xl font-serif outline-none focus:border-gold" />
           {amt > 0 && (
-            <div className="mt-4 grid sm:grid-cols-3 gap-3 text-sm">
-              <Stat label="Detected Plan" value={`${planInfo.emoji} ${planInfo.label}`} />
-              <Stat label="Monthly Rate" value={`${planInfo.rate}%`} />
-              <Stat label="Expected 2X" value={fmtInr(amt * 2)} accent />
+            <div className={`mt-4 rounded-lg border-2 ${planInfo.color} bg-navy/60 p-4`}>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <div className="text-[10px] uppercase tracking-widest text-white/50">Auto-detected plan</div>
+                  <div className="font-serif text-2xl text-gold">{planInfo.emoji} {planInfo.label} Plan</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-widest text-white/50">Monthly rate</div>
+                  <div className="font-serif text-2xl text-emerald-300">{planInfo.rate}%</div>
+                </div>
+              </div>
+              <div className="mt-3 grid sm:grid-cols-3 gap-3 text-sm">
+                <Stat label="Monthly Payout" value={fmtInr(amt * planInfo.rate / 100)} />
+                <Stat label="In 12 Months" value={fmtInr(amt * planInfo.rate * 12 / 100)} />
+                <Stat label="2X Target" value={fmtInr(amt * 2)} accent />
+              </div>
+              <ul className="mt-3 text-xs text-white/70 list-disc pl-5 space-y-1">
+                {planInfo.features.map((f) => <li key={f}>{f}</li>)}
+              </ul>
             </div>
           )}
         </section>
+
 
         {/* UPI section */}
         {upiList.length > 0 && (

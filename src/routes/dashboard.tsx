@@ -22,8 +22,11 @@ interface CompanyAsset {
   use_manual_price: boolean; allocation_percent: number; risk_level: string;
 }
 
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
+
 function Dashboard() {
   const nav = useNavigate();
+  useIdleTimeout(10, "/login");
   const [profile, setProfile] = useState<Profile | null>(null);
   const [invs, setInvs] = useState<Investment[]>([]);
   const [pendingTxns, setPendingTxns] = useState<PendingTxn[]>([]);

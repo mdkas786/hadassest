@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { QRCodeCanvas } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
 import { extractPaymentInfo } from "@/lib/ocr.functions";
-import { PLANS, planForAmount, fmtInr } from "@/lib/plans";
+import { PLANS, planForAmount, fmtInr, MIN_INVESTMENT, MAX_INVESTMENT } from "@/lib/plans";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/pay")({

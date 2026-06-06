@@ -121,9 +121,11 @@ function PayPage() {
 
         {/* Amount input + plan auto-detect */}
         <section className="rounded-xl border border-gold/30 bg-navy-light/40 p-6">
-          <label className="text-xs text-white/70 uppercase tracking-widest">Investment Amount (₹)</label>
-          <input type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)}
+          <label className="text-xs text-white/70 uppercase tracking-widest">Investment Amount (₹ {MIN_INVESTMENT.toLocaleString("en-IN")} – ₹ {MAX_INVESTMENT.toLocaleString("en-IN")})</label>
+          <input type="number" min={MIN_INVESTMENT} max={MAX_INVESTMENT} value={amount} onChange={(e) => setAmount(e.target.value)}
             placeholder="50000" className="w-full mt-2 bg-navy border border-gold/25 rounded-md px-4 py-3 text-2xl font-serif outline-none focus:border-gold" />
+          {amt > 0 && amt < MIN_INVESTMENT && <p className="text-xs text-red-300 mt-1">Below minimum ₹{MIN_INVESTMENT.toLocaleString("en-IN")}</p>}
+          {amt > MAX_INVESTMENT && <p className="text-xs text-red-300 mt-1">Above maximum ₹{MAX_INVESTMENT.toLocaleString("en-IN")}</p>}
           {amt > 0 && (
             <div className={`mt-4 rounded-lg border-2 ${planInfo.color} bg-navy/60 p-4`}>
               <div className="flex items-center justify-between flex-wrap gap-2">

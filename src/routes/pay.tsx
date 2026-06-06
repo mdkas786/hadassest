@@ -74,6 +74,8 @@ function PayPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!profile || !amt) return;
+    if (amt < MIN_INVESTMENT) { toast.error(`Minimum investment ₹${MIN_INVESTMENT.toLocaleString("en-IN")}`); return; }
+    if (amt > MAX_INVESTMENT) { toast.error(`Maximum investment ₹${MAX_INVESTMENT.toLocaleString("en-IN")}`); return; }
     setSubmitting(true);
     try {
       let screenshot_url: string | null = null;

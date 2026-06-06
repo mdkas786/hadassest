@@ -16,6 +16,9 @@ export const Route = createFileRoute("/dashboard")({
 interface Profile { id: string; had_id: string; full_name: string }
 interface Investment { id: string; plan_name: string; plan_rate: number; amount_invested: number; amount_received: number; expected_2x: number | null; status: string }
 interface PendingTxn { id: string; amount: number; status: string; payment_method: string | null; plan_name: string | null; created_at: string; utr_number: string | null }
+interface ReturnRow { amount: number }
+interface SponsorIncomeRow { sponsor_amount: number }
+interface PartnerIncomeRow { total_bonus: number }
 interface CompanyAsset {
   id: string; asset_name: string; symbol: string; coincap_id: string | null;
   entry_price: number; current_price: number; custom_current_price: number | null;
@@ -34,6 +37,9 @@ function Dashboard() {
   const [topAssets, setTopAssets] = useState<CoinAsset[]>([]);
   const [live, setLive] = useState<Record<string, string>>({});
   const [inrRate, setInrRate] = useState(83);
+  const [roiHistory, setRoiHistory] = useState<ReturnRow[]>([]);
+  const [sponsorIncome, setSponsorIncome] = useState<SponsorIncomeRow[]>([]);
+  const [partnerIncome, setPartnerIncome] = useState<PartnerIncomeRow[]>([]);
   const [unread, setUnread] = useState(0);
   const [banner, setBanner] = useState<string | null>(null);
   const [maintenance, setMaintenance] = useState(false);
@@ -44,15 +50,21 @@ function Dashboard() {
       if (!user) { nav({ to: "/login" }); return; }
       const { data: p } = await supabase.from("profiles").select("id, had_id, full_name").eq("id", user.id).maybeSingle();
       setProfile(p as any);
-      const [{ data: i }, { data: ca }, { data: settings }, { data: tx }] = await Promise.all([
+      const [{ data: i }, { data: ca }, { data: settings }, { data: tx }, { data: returns }, { data: sponsor }, { data: partner }] = await Promise.all([
         supabase.from("investments").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
         supabase.from("trading_assets_public").select("*").eq("status", "active"),
         supabase.from("app_settings").select("key, value"),
         supabase.from("transactions").select("id, amount, status, payment_method, plan_name, created_at, utr_number").eq("user_id", user.id).in("status", ["pending", "verified"]).order("created_at", { ascending: false }).limit(10),
+        supabase.from("return_payments").select("amount").eq("user_id", user.id),
+        supabase.from("sponsor_income").select("sponsor_amount").eq("earner_user_id", user.id),
+        supabase.from("partner_income").select("total_bonus").eq("earner_user_id", user.id),
       ]);
       setInvs((i as any) || []);
       setCompanyAssets((ca as any) || []);
       setPendingTxns(((tx as any) || []).filter((row: any) => row.status === "pending"));
+      setRoiHistory((returns as ReturnRow[]) || []);
+      setSponsorIncome((sponsor as SponsorIncomeRow[]) || []);
+      setPartnerIncome((partner as PartnerIncomeRow[]) || []);
       const map = new Map((settings || []).map((s: any) => [s.key, s.value]));
       setBanner(map.get("announcement_banner") || null);
       setMaintenance(map.get("maintenance_mode") === "true");
@@ -104,6 +116,21 @@ function Dashboard() {
           const { data } = await supabase.from("transactions").select("id, amount, status, payment_method, plan_name, created_at, utr_number").eq("user_id", profile.id).in("status", ["pending", "verified"]).order("created_at", { ascending: false }).limit(10);
           setPendingTxns(((data as any) || []).filter((row: any) => row.status === "pending"));
         })
+      .on("postgres_changes", { event: "*", schema: "public", table: "return_payments", filter: `user_id=eq.${profile.id}` },
+        async () => {
+          const { data } = await supabase.from("return_payments").select("amount").eq("user_id", profile.id);
+          setRoiHistory((data as ReturnRow[]) || []);
+        })
+      .on("postgres_changes", { event: "*", schema: "public", table: "sponsor_income", filter: `earner_user_id=eq.${profile.id}` },
+        async () => {
+          const { data } = await supabase.from("sponsor_income").select("sponsor_amount").eq("earner_user_id", profile.id);
+          setSponsorIncome((data as SponsorIncomeRow[]) || []);
+        })
+      .on("postgres_changes", { event: "*", schema: "public", table: "partner_income", filter: `earner_user_id=eq.${profile.id}` },
+        async () => {
+          const { data } = await supabase.from("partner_income").select("total_bonus").eq("earner_user_id", profile.id);
+          setPartnerIncome((data as PartnerIncomeRow[]) || []);
+        })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" },
         (payload) => {
           const n = payload.new as any;
@@ -122,7 +149,19 @@ function Dashboard() {
     return { invested, received, target, remaining, pct };
   }, [invs]);
   const pendingTotal = useMemo(() => pendingTxns.reduce((sum, txn) => sum + Number(txn.amount), 0), [pendingTxns]);
-  const activePlan = invs.find((i) => i.status === "active")?.plan_name ?? "—";
+  const activeInvestment = invs.find((i) => i.status === "active") || invs[0] || null;
+  const activePlan = activeInvestment?.plan_name ?? "—";
+  const roiPct = Number(activeInvestment?.plan_rate || 0);
+  const monthlyRoi = activeInvestment ? Number(activeInvestment.amount_invested) * roiPct / 100 : 0;
+  const roiTotal = roiHistory.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const sponsorTotal = sponsorIncome.reduce((sum, row) => sum + Number(row.sponsor_amount || 0), 0);
+  const partnerTotal = partnerIncome.reduce((sum, row) => sum + Number(row.total_bonus || 0), 0);
+  const nextPayout = useMemo(() => {
+    const now = new Date();
+    const next = new Date(now.getFullYear(), now.getMonth(), 10);
+    if (now.getDate() > 10) next.setMonth(next.getMonth() + 1);
+    return next.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  }, []);
 
   if (maintenance) {
     return (
@@ -170,17 +209,25 @@ function Dashboard() {
       <main className="mx-auto max-w-6xl px-6 py-8 space-y-8">
         <div>
           <h1 className="font-serif text-4xl">Hello {profile?.full_name?.split(" ")[0] || "investor"} 👋</h1>
-          <p className="text-white/60 mt-1">HAD ID: <span className="text-gold">{profile?.had_id || "—"}</span> · Plan: {activePlan}</p>
+          <p className="text-white/60 mt-1">HAD ID: <span className="text-gold">{profile?.had_id || "—"}</span> · Plan: {String(activePlan).toUpperCase()} · Next payout: 10th</p>
         </div>
 
         {/* Investment summary */}
         <section className="rounded-xl border border-gold/30 bg-navy-light/40 p-6">
           <p className="text-xs tracking-[0.3em] text-gold uppercase">Investment Summary</p>
-          <div className="mt-4 grid sm:grid-cols-4 gap-4">
-            <Metric label="Invested" value={`₹${totals.invested.toLocaleString("en-IN")}`} />
-            <Metric label="Received" value={`₹${totals.received.toLocaleString("en-IN")}`} />
-            <Metric label="2X Target" value={`₹${totals.target.toLocaleString("en-IN")}`} />
-            <Metric label="Remaining" value={`₹${totals.remaining.toLocaleString("en-IN")}`} accent />
+          <div className="mt-4 grid sm:grid-cols-2 xl:grid-cols-5 gap-4">
+            <Metric label="Investment Amount" value={`₹${totals.invested.toLocaleString("en-IN")}`} />
+            <Metric label="Current Plan" value={String(activePlan).toUpperCase()} />
+            <Metric label="ROI %" value={`${roiPct}%`} />
+            <Metric label="Monthly ROI" value={`₹${Math.round(monthlyRoi).toLocaleString("en-IN")}`} />
+            <Metric label="Next payout" value={nextPayout} accent />
+          </div>
+          <div className="mt-4 grid sm:grid-cols-2 xl:grid-cols-5 gap-4">
+            <Metric label="Referral Income" value={`₹${Math.round(sponsorTotal).toLocaleString("en-IN")}`} />
+            <Metric label="Level Income" value={`₹${Math.round(partnerTotal).toLocaleString("en-IN")}`} />
+            <Metric label="Total Received" value={`₹${Math.round(totals.received).toLocaleString("en-IN")}`} />
+            <Metric label="2X Target" value={`₹${Math.round(totals.target).toLocaleString("en-IN")}`} />
+            <Metric label="Remaining" value={`₹${Math.round(totals.remaining).toLocaleString("en-IN")}`} accent />
           </div>
           <div className="mt-6">
             <div className="flex justify-between text-xs text-white/60 mb-1"><span>2X progress</span><span>{totals.pct.toFixed(1)}%</span></div>
@@ -210,6 +257,7 @@ function Dashboard() {
               </div>
             )}
           </div>
+          <div className="mt-4 text-xs text-white/50">ROI credited so far: ₹{Math.round(roiTotal).toLocaleString("en-IN")} · Referral + level income are also counted in the package journey.</div>
         </section>
 
         {/* Company portfolio feed */}

@@ -68,6 +68,48 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          data_summary: Json | null
+          id: string
+          performed_by: string | null
+          target_had_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          data_summary?: Json | null
+          id?: string
+          performed_by?: string | null
+          target_had_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          data_summary?: Json | null
+          id?: string
+          performed_by?: string | null
+          target_had_id?: string | null
+        }
+        Relationships: []
+      }
+      config: {
+        Row: {
+          key: string
+          value: string | null
+        }
+        Insert: {
+          key: string
+          value?: string | null
+        }
+        Update: {
+          key?: string
+          value?: string | null
+        }
+        Relationships: []
+      }
       daily_reports: {
         Row: {
           created_at: string
@@ -115,16 +157,24 @@ export type Database = {
           amount_invested: number
           amount_received: number
           created_at: string
+          duration_months: number | null
           expected_2x: number | null
           had_id: string
           id: string
+          is_special: boolean
+          monthly_roi: number | null
           notes: string | null
+          offer_id: string | null
           partner_income_total: number
           plan_name: Database["public"]["Enums"]["plan_type"]
           plan_rate: number
+          slab_id: string | null
           sponsor_income_total: number
           start_date: string
           status: Database["public"]["Enums"]["investment_status"]
+          total_income_received: number
+          total_return: number | null
+          transaction_id: string | null
           updated_at: string
           user_id: string
         }
@@ -132,16 +182,24 @@ export type Database = {
           amount_invested?: number
           amount_received?: number
           created_at?: string
+          duration_months?: number | null
           expected_2x?: number | null
           had_id: string
           id?: string
+          is_special?: boolean
+          monthly_roi?: number | null
           notes?: string | null
+          offer_id?: string | null
           partner_income_total?: number
           plan_name?: Database["public"]["Enums"]["plan_type"]
           plan_rate?: number
+          slab_id?: string | null
           sponsor_income_total?: number
           start_date?: string
           status?: Database["public"]["Enums"]["investment_status"]
+          total_income_received?: number
+          total_return?: number | null
+          transaction_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -149,16 +207,24 @@ export type Database = {
           amount_invested?: number
           amount_received?: number
           created_at?: string
+          duration_months?: number | null
           expected_2x?: number | null
           had_id?: string
           id?: string
+          is_special?: boolean
+          monthly_roi?: number | null
           notes?: string | null
+          offer_id?: string | null
           partner_income_total?: number
           plan_name?: Database["public"]["Enums"]["plan_type"]
           plan_rate?: number
+          slab_id?: string | null
           sponsor_income_total?: number
           start_date?: string
           status?: Database["public"]["Enums"]["investment_status"]
+          total_income_received?: number
+          total_return?: number | null
+          transaction_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -192,9 +258,11 @@ export type Database = {
           created_by: string | null
           had_id: string
           id: string
+          is_read: boolean
           notif_type: string
           read_at: string | null
           title: string
+          type: string
         }
         Insert: {
           body: string
@@ -202,9 +270,11 @@ export type Database = {
           created_by?: string | null
           had_id: string
           id?: string
+          is_read?: boolean
           notif_type?: string
           read_at?: string | null
           title: string
+          type?: string
         }
         Update: {
           body?: string
@@ -212,9 +282,11 @@ export type Database = {
           created_by?: string | null
           had_id?: string
           id?: string
+          is_read?: boolean
           notif_type?: string
           read_at?: string | null
           title?: string
+          type?: string
         }
         Relationships: []
       }
@@ -362,51 +434,164 @@ export type Database = {
         }
         Relationships: []
       }
+      special_offer_slabs: {
+        Row: {
+          benefits: string | null
+          created_at: string
+          duration_months: number
+          id: string
+          investment_amount: number
+          monthly_profit: number
+          offer_id: string
+          slab_label: string | null
+          sort_order: number
+          total_return: number
+        }
+        Insert: {
+          benefits?: string | null
+          created_at?: string
+          duration_months: number
+          id?: string
+          investment_amount: number
+          monthly_profit: number
+          offer_id: string
+          slab_label?: string | null
+          sort_order?: number
+          total_return: number
+        }
+        Update: {
+          benefits?: string | null
+          created_at?: string
+          duration_months?: number
+          id?: string
+          investment_amount?: number
+          monthly_profit?: number
+          offer_id?: string
+          slab_label?: string | null
+          sort_order?: number
+          total_return?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "special_offer_slabs_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "special_offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      special_offers: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          image: string | null
+          name: string | null
+          published: boolean
+          start_date: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          image?: string | null
+          name?: string | null
+          published?: boolean
+          start_date?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          image?: string | null
+          name?: string | null
+          published?: boolean
+          start_date?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sponsor_income: {
         Row: {
+          base_amount: number | null
           created_at: string
           earner_had_id: string
           earner_user_id: string
           id: string
+          income_amount: number | null
           investment_amount: number
+          investment_id: string | null
+          month: string | null
           notes: string | null
           paid_at: string | null
           paid_by: string | null
+          percentage: number | null
           referred_had_id: string
           referred_user_id: string
+          source_had_id: string | null
           sponsor_amount: number
           status: string
           transaction_id: string | null
+          type: string
         }
         Insert: {
+          base_amount?: number | null
           created_at?: string
           earner_had_id: string
           earner_user_id: string
           id?: string
+          income_amount?: number | null
           investment_amount?: number
+          investment_id?: string | null
+          month?: string | null
           notes?: string | null
           paid_at?: string | null
           paid_by?: string | null
+          percentage?: number | null
           referred_had_id: string
           referred_user_id: string
+          source_had_id?: string | null
           sponsor_amount?: number
           status?: string
           transaction_id?: string | null
+          type?: string
         }
         Update: {
+          base_amount?: number | null
           created_at?: string
           earner_had_id?: string
           earner_user_id?: string
           id?: string
+          income_amount?: number | null
           investment_amount?: number
+          investment_id?: string | null
+          month?: string | null
           notes?: string | null
           paid_at?: string | null
           paid_by?: string | null
+          percentage?: number | null
           referred_had_id?: string
           referred_user_id?: string
+          source_had_id?: string | null
           sponsor_amount?: number
           status?: string
           transaction_id?: string | null
+          type?: string
         }
         Relationships: []
       }
@@ -478,11 +663,13 @@ export type Database = {
           id: string
           method: string | null
           notes: string | null
+          offer_id: string | null
           payment_method: string | null
           plan_name: string | null
           rejection_reason: string | null
           screenshot_url: string | null
           slab_amount: number | null
+          slab_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           txn_ref: string | null
           type: Database["public"]["Enums"]["transaction_type"]
@@ -498,11 +685,13 @@ export type Database = {
           id?: string
           method?: string | null
           notes?: string | null
+          offer_id?: string | null
           payment_method?: string | null
           plan_name?: string | null
           rejection_reason?: string | null
           screenshot_url?: string | null
           slab_amount?: number | null
+          slab_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           txn_ref?: string | null
           type?: Database["public"]["Enums"]["transaction_type"]
@@ -518,11 +707,13 @@ export type Database = {
           id?: string
           method?: string | null
           notes?: string | null
+          offer_id?: string | null
           payment_method?: string | null
           plan_name?: string | null
           rejection_reason?: string | null
           screenshot_url?: string | null
           slab_amount?: number | null
+          slab_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           txn_ref?: string | null
           type?: Database["public"]["Enums"]["transaction_type"]
@@ -551,6 +742,141 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_special_investments: {
+        Row: {
+          amount: number
+          created_at: string
+          duration_months: number
+          end_date: string | null
+          had_id: string
+          id: string
+          monthly_profit: number
+          offer_id: string
+          slab_id: string
+          start_date: string | null
+          status: string
+          total_return: number
+          transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          duration_months?: number
+          end_date?: string | null
+          had_id: string
+          id?: string
+          monthly_profit?: number
+          offer_id: string
+          slab_id: string
+          start_date?: string | null
+          status?: string
+          total_return?: number
+          transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          duration_months?: number
+          end_date?: string | null
+          had_id?: string
+          id?: string
+          monthly_profit?: number
+          offer_id?: string
+          slab_id?: string
+          start_date?: string | null
+          status?: string
+          total_return?: number
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_special_investments_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "special_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_special_investments_slab_id_fkey"
+            columns: ["slab_id"]
+            isOneToOne: false
+            referencedRelation: "special_offer_slabs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          bep20_wallet: string | null
+          city: string | null
+          created_at: string
+          email: string | null
+          had_id: string
+          id: string
+          mobile: string | null
+          name: string
+          referred_by: string | null
+          status: string
+          trc20_wallet: string | null
+          upi_id: string | null
+        }
+        Insert: {
+          bep20_wallet?: string | null
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          had_id: string
+          id?: string
+          mobile?: string | null
+          name: string
+          referred_by?: string | null
+          status?: string
+          trc20_wallet?: string | null
+          upi_id?: string | null
+        }
+        Update: {
+          bep20_wallet?: string | null
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          had_id?: string
+          id?: string
+          mobile?: string | null
+          name?: string
+          referred_by?: string | null
+          status?: string
+          trc20_wallet?: string | null
+          upi_id?: string | null
+        }
+        Relationships: []
+      }
+      wallets: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string | null
+          type: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          type: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          type?: string
         }
         Relationships: []
       }
@@ -615,7 +941,12 @@ export type Database = {
       }
     }
     Functions: {
-      admin_delete_user: { Args: { _user_id: string }; Returns: undefined }
+      admin_delete_user:
+        | { Args: { _user_id: string }; Returns: undefined }
+        | {
+            Args: { admin_id: string; target_had_id: string }
+            Returns: undefined
+          }
       check_had_id: {
         Args: { p_had_id: string }
         Returns: {
@@ -623,6 +954,7 @@ export type Database = {
         }[]
       }
       generate_had_id: { Args: never; Returns: string }
+      get_team_count: { Args: { root_had_id: string }; Returns: number }
       get_trading_assets_admin: {
         Args: never
         Returns: {

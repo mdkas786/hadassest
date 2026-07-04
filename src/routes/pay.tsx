@@ -1,269 +1,258 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
-import { QRCodeCanvas } from "qrcode.react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { UserShell } from "@/components/UserShell";
 import { supabase } from "@/integrations/supabase/client";
-import { extractPaymentInfo } from "@/lib/ocr.functions";
-import { PLANS, planForAmount, fmtInr, MIN_INVESTMENT, MAX_INVESTMENT } from "@/lib/plans";
+import { getUser } from "@/lib/session";
+import { formatINR, getPlan } from "@/lib/format";
+import { extractPaymentFromImage } from "@/lib/ocr.functions";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { approveTransaction, getVerificationMode } from "@/lib/approve";
 
 export const Route = createFileRoute("/pay")({
   head: () => ({ meta: [{ title: "Pay — H.A.D." }] }),
-  component: PayPage,
+  component: Pay,
 });
 
-type Wallet = { id: string; wallet_type: string; wallet_address: string; wallet_label: string | null };
+function fileToBase64(file: File): Promise<{ b64: string; mime: string }> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const result = String(r.result);
+      const [meta, b64] = result.split(",");
+      const mime = (meta.match(/data:(.*?);base64/) || [])[1] || file.type || "image/png";
+      resolve({ b64, mime });
+    };
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
 
-function PayPage() {
-  const nav = useNavigate();
-  const ocr = useServerFn(extractPaymentInfo);
-  const [profile, setProfile] = useState<{ had_id: string; id: string } | null>(null);
-  const [wallets, setWallets] = useState<Wallet[]>([]);
-  const [amount, setAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"UPI" | "TRC20" | "BEP20">("UPI");
+function Pay() {
+  const u = typeof window !== "undefined" ? getUser() : null;
+  const [amount, setAmount] = useState<number>(50000);
+  const [method, setMethod] = useState("UPI");
   const [utr, setUtr] = useState("");
-  const [screenshot, setScreenshot] = useState<File | null>(null);
+  const [wallets, setWallets] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
+  const [screenshotPath, setScreenshotPath] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const ocr = useServerFn(extractPaymentFromImage);
+  const [specialOffer, setSpecialOffer] = useState<any>(null);
+  const [specialSlab, setSpecialSlab] = useState<any>(null);
 
   useEffect(() => {
+    supabase.from("wallets").select("*").eq("is_active", true).then(({ data }) => setWallets(data ?? []));
+  }, []);
+
+  // Detect special offer mode from ?offer=&slab=
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    const offerId = sp.get("offer");
+    const slabId = sp.get("slab");
+    if (!offerId || !slabId) return;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { nav({ to: "/login" }); return; }
-      const { data: p } = await supabase.from("profiles").select("id, had_id").eq("id", user.id).maybeSingle();
-      setProfile(p as any);
-      const { data: w } = await supabase.from("app_wallets").select("*").eq("is_active", true).order("display_order");
-      setWallets((w as any) || []);
+      const { data: o } = await (supabase as any).from("special_offers").select("*").eq("id", offerId).maybeSingle();
+      const { data: s } = await (supabase as any).from("special_offer_slabs").select("*").eq("id", slabId).maybeSingle();
+      if (o && s && o.published) {
+        setSpecialOffer(o);
+        setSpecialSlab(s);
+        setAmount(Number(s.investment_amount));
+      }
     })();
+  }, []);
 
-    const ch = supabase.channel("pay_wallets").on(
-      "postgres_changes", { event: "*", schema: "public", table: "app_wallets" },
-      async () => {
-        const { data: w } = await supabase.from("app_wallets").select("*").eq("is_active", true).order("display_order");
-        setWallets((w as any) || []);
-      },
-    ).subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [nav]);
+  const plan = getPlan(amount);
 
-  const upiList = wallets.filter((w) => w.wallet_type === "upi");
-  const trc20List = wallets.filter((w) => w.wallet_type === "usdt_trc20");
-  const bep20List = wallets.filter((w) => w.wallet_type === "usdt_bep20");
-
-  const amt = Number(amount) || 0;
-  const plan = useMemo(() => planForAmount(amt), [amt]);
-  const planInfo = PLANS[plan];
-
-  async function handleFile(file: File | null) {
-    setScreenshot(file);
-    if (!file) return;
+  async function onScreenshot(file: File) {
+    if (!u) return;
     setScanning(true);
     try {
-      const base64 = await fileToBase64(file);
-      const result = await ocr({ data: { imageBase64: base64, mimeType: file.type || "image/png" } });
-      let filled = 0;
-      if (result.amount) { setAmount(String(result.amount)); filled++; }
-      if (result.txn_ref) { setUtr(result.txn_ref); filled++; }
-      if (filled) toast.success(`Auto-filled ${filled} field${filled > 1 ? "s" : ""}`);
-      else toast.message("Could not auto-detect — please fill manually");
-    } catch (err: any) {
-      toast.error(err.message || "OCR failed — fill manually");
-    } finally { setScanning(false); }
-  }
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!profile || !amt) return;
-    if (amt < MIN_INVESTMENT) { toast.error(`Minimum investment ₹${MIN_INVESTMENT.toLocaleString("en-IN")}`); return; }
-    if (amt > MAX_INVESTMENT) { toast.error(`Maximum investment ₹${MAX_INVESTMENT.toLocaleString("en-IN")}`); return; }
-    setSubmitting(true);
-    try {
-      let screenshot_url: string | null = null;
-      if (screenshot) {
-        const path = `${profile.id}/${Date.now()}_${screenshot.name}`;
-        const { error: upErr } = await supabase.storage.from("payment-screenshots").upload(path, screenshot);
-        if (upErr) throw upErr;
-        screenshot_url = path;
+      // 1. upload to storage (private bucket; admin will sign URL when viewing)
+      const path = `${u.had_id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const { error: upErr } = await supabase.storage.from("payment-screenshots").upload(path, file, { upsert: false });
+      if (upErr) throw upErr;
+      setScreenshotPath(path);
+      setScreenshotUrl(URL.createObjectURL(file));
+      // 2. OCR via Lovable AI
+      const { b64, mime } = await fileToBase64(file);
+      const result = await ocr({ data: { imageBase64: b64, mimeType: mime } });
+      if (!result.ok) {
+        toast.error(result.error || "OCR failed — please fill manually");
+        return;
       }
-      const method = paymentMethod === "UPI" ? "upi" : paymentMethod === "TRC20" ? "usdt" : "usdt";
-      const { error } = await supabase.from("transactions").insert({
-        user_id: profile.id, had_id: profile.had_id,
-        amount: amt, type: "investment", method,
-        payment_method: paymentMethod,
-        plan_name: plan, slab_amount: amt,
-        utr_number: utr || null, txn_ref: utr || null,
-        screenshot_url, status: "pending",
-      } as any);
-      if (error) throw error;
-      toast.success("Payment submitted! Admin verify karega.");
-      setAmount(""); setUtr(""); setScreenshot(null);
-      setTimeout(() => nav({ to: "/dashboard" }), 800);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to submit");
-    } finally { setSubmitting(false); }
+      if (result.utr) setUtr(result.utr);
+      if (result.amount && result.amount >= 1000) setAmount(Math.round(result.amount));
+      if (result.method) {
+        const m = result.method.toUpperCase();
+        if (m.includes("TRC")) setMethod("USDT TRC20");
+        else if (m.includes("BEP")) setMethod("USDT BEP20");
+        else if (m.includes("BTC")) setMethod("BTC");
+        else if (m.includes("ETH")) setMethod("ETH");
+        else setMethod("UPI");
+      }
+      toast.success(`Detected: ${result.utr ? "UTR " + result.utr : "details"} from ${result.app || "screenshot"} — verify & submit`);
+    } catch (e: any) {
+      toast.error(e?.message || "Screenshot processing failed");
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!u) return;
+    if (!utr.trim()) return toast.error("UTR / Transaction ID required");
+    setSubmitting(true);
+    const txnPlanName = specialSlab ? `SPECIAL:${specialOffer?.title ?? "OFFER"}` : plan.name;
+    const { data: txn, error } = await supabase.from("transactions").insert({
+      had_id: u.had_id,
+      type: specialSlab ? "special_investment" : "investment",
+      amount,
+      payment_method: method,
+      utr_number: utr.trim(),
+      plan_name: txnPlanName,
+      status: "pending",
+      screenshot_url: screenshotPath,
+      offer_id: specialOffer?.id ?? null,
+      slab_id: specialSlab?.id ?? null,
+    }).select().maybeSingle();
+    if (error) { setSubmitting(false); return toast.error(error.message); }
+    if (specialSlab && specialOffer && txn) {
+      await (supabase as any).from("user_special_investments").insert({
+        had_id: u.had_id,
+        offer_id: specialOffer.id,
+        slab_id: specialSlab.id,
+        amount: Number(specialSlab.investment_amount),
+        monthly_profit: Number(specialSlab.monthly_profit),
+        duration_months: Number(specialSlab.duration_months),
+        total_return: Number(specialSlab.total_return),
+        transaction_id: txn.id,
+        status: "pending",
+      });
+    }
+    // Auto-verify if global mode is set to automatic
+    let autoApproved = false;
+    if (txn) {
+      const mode = await getVerificationMode();
+      if (mode === "automatic") {
+        const res = await approveTransaction(txn.id);
+        autoApproved = !!res.ok;
+      }
+    }
+    setSubmitting(false);
+    toast.success(autoApproved
+      ? "Payment auto-verified ✅ Your investment is now active."
+      : "Payment proof submitted! Admin will verify within 24 hours.");
+    setUtr("");
+    setScreenshotUrl(null);
+    setScreenshotPath(null);
+    if (fileRef.current) fileRef.current.value = "";
   }
 
   return (
-    <div className="min-h-screen bg-navy text-white">
-      <header className="border-b border-gold/20 bg-navy-light/40">
-        <div className="mx-auto max-w-4xl px-6 h-16 flex items-center justify-between">
-          <Link to="/dashboard" className="text-sm text-white/70 hover:text-gold">← Dashboard</Link>
-          <Link to="/" className="font-serif text-xl text-gold">H.A.D.</Link>
-          <span />
-        </div>
-      </header>
-      <main className="mx-auto max-w-4xl px-6 py-8 space-y-6">
+    <UserShell>
+      <div className="space-y-6 max-w-3xl">
         <div>
-          <p className="text-xs tracking-[0.3em] text-gold uppercase">Pay</p>
-          <h1 className="font-serif text-3xl mt-1">Send your investment</h1>
-          {profile && <p className="text-xs text-white/50 mt-1">Note: HAD-{profile.had_id}</p>}
+          <p className="text-xs text-[var(--gold)] tracking-widest">PAY</p>
+          <h1 className="text-2xl font-bold">Send your investment</h1>
+          <p className="text-xs text-muted-foreground">HAD ID: {u?.had_id}</p>
         </div>
 
-        {/* Amount input + plan auto-detect */}
-        <section className="rounded-xl border border-gold/30 bg-navy-light/40 p-6">
-          <label className="text-xs text-white/70 uppercase tracking-widest">Investment Amount (₹ {MIN_INVESTMENT.toLocaleString("en-IN")} – ₹ {MAX_INVESTMENT.toLocaleString("en-IN")})</label>
-          <input type="number" min={MIN_INVESTMENT} max={MAX_INVESTMENT} value={amount} onChange={(e) => setAmount(e.target.value)}
-            placeholder="50000" className="w-full mt-2 bg-navy border border-gold/25 rounded-md px-4 py-3 text-2xl font-serif outline-none focus:border-gold" />
-          {amt > 0 && amt < MIN_INVESTMENT && <p className="text-xs text-red-300 mt-1">Below minimum ₹{MIN_INVESTMENT.toLocaleString("en-IN")}</p>}
-          {amt > MAX_INVESTMENT && <p className="text-xs text-red-300 mt-1">Above maximum ₹{MAX_INVESTMENT.toLocaleString("en-IN")}</p>}
-          {amt > 0 && (
-            <div className={`mt-4 rounded-lg border-2 ${planInfo.color} bg-navy/60 p-4`}>
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <div className="text-[10px] uppercase tracking-widest text-white/50">Auto-detected plan</div>
-                  <div className="font-serif text-2xl text-gold">{planInfo.emoji} {planInfo.label} Plan</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] uppercase tracking-widest text-white/50">Monthly rate</div>
-                  <div className="font-serif text-2xl text-emerald-300">{planInfo.rate}%</div>
-                </div>
-              </div>
-              <div className="mt-3 grid sm:grid-cols-3 gap-3 text-sm">
-                <Stat label="Monthly Payout" value={fmtInr(amt * planInfo.rate / 100)} />
-                <Stat label="In 12 Months" value={fmtInr(amt * planInfo.rate * 12 / 100)} />
-                <Stat label="2X Target" value={fmtInr(amt * 2)} accent />
-              </div>
-              <ul className="mt-3 text-xs text-white/70 list-disc pl-5 space-y-1">
-                {planInfo.features.map((f) => <li key={f}>{f}</li>)}
-              </ul>
+        {specialSlab && specialOffer && (
+          <div className="rounded-xl border-2 border-[var(--gold)] bg-gradient-to-r from-[var(--gold)]/15 to-card p-4 animate-fade-in">
+            <p className="text-[10px] uppercase tracking-widest text-[var(--gold)] font-bold">🔥 Special Offer Investment</p>
+            <p className="font-bold text-[var(--gold)] mt-1">{specialOffer.title} · {specialSlab.slab_label || "Plan"}</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-xs">
+              <div><p className="text-muted-foreground">Investment</p><p className="font-semibold">{formatINR(specialSlab.investment_amount)}</p></div>
+              <div><p className="text-muted-foreground">Monthly</p><p className="font-semibold text-[var(--success)]">{formatINR(specialSlab.monthly_profit)}</p></div>
+              <div><p className="text-muted-foreground">Duration</p><p className="font-semibold">{specialSlab.duration_months} months</p></div>
+              <div><p className="text-muted-foreground">Total Return</p><p className="font-semibold text-[var(--gold)]">{formatINR(specialSlab.total_return)}</p></div>
             </div>
-          )}
-        </section>
-
-
-        {/* UPI section */}
-        {upiList.length > 0 && (
-          <section>
-            <h2 className="font-serif text-2xl mb-3">UPI Payment</h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              {upiList.map((u) => <UpiCard key={u.id} w={u} amount={amt} hadId={profile?.had_id} />)}
-            </div>
-          </section>
-        )}
-
-        {/* Crypto section */}
-        {(trc20List.length + bep20List.length) > 0 && (
-          <section>
-            <h2 className="font-serif text-2xl mb-3">Crypto Payment (USDT)</h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              {trc20List.map((w) => <CryptoCard key={w.id} w={w} network="TRC20" />)}
-              {bep20List.map((w) => <CryptoCard key={w.id} w={w} network="BEP20" />)}
-            </div>
-          </section>
-        )}
-
-        {/* Submit proof */}
-        <form onSubmit={submit} className="rounded-xl border border-gold/30 bg-navy-light/40 p-6 space-y-4">
-          <h2 className="font-serif text-xl">Submit payment proof</h2>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="Payment Method">
-              <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as any)} className="input">
-                <option value="UPI">UPI</option>
-                <option value="TRC20">USDT TRC20</option>
-                <option value="BEP20">USDT BEP20</option>
-              </select>
-            </Field>
-            <Field label="UTR / Transaction ID">
-              <input value={utr} onChange={(e) => setUtr(e.target.value)} className="input" />
-            </Field>
-            <div className="sm:col-span-2">
-              <Field label={`Screenshot ${scanning ? "(scanning…)" : "(AI auto-fill)"}`}>
-                <input type="file" accept="image/*" onChange={(e) => handleFile(e.target.files?.[0] || null)} className="input" />
-              </Field>
-            </div>
+            <p className="text-[11px] text-muted-foreground mt-2">Amount is locked to this slab. Existing referral & sponsor rules continue to apply.</p>
           </div>
-          <button disabled={submitting || scanning || !amt} className="w-full bg-gold text-navy rounded-md py-3 font-medium disabled:opacity-60">
-            {submitting ? "Submitting…" : scanning ? "Reading screenshot…" : "Submit for verification"}
+        )}
+
+        <div className="bg-card border border-border rounded-lg p-5">
+          <label className="text-xs text-muted-foreground">INVESTMENT AMOUNT (₹50,000 – ₹50,00,000)</label>
+          <input type="number" min={50000} max={5000000} value={amount} disabled={!!specialSlab} onChange={(e) => setAmount(Number(e.target.value))} className="w-full bg-input border border-border rounded px-3 py-2 mt-1 text-lg disabled:opacity-60" />
+          {specialSlab ? (
+            <p className="text-xs text-[var(--gold)] mt-2">Special Offer · {formatINR(amount)} locked</p>
+          ) : (
+            <p className="text-xs text-[var(--gold)] mt-2">{formatINR(amount)} → {plan.name} ({plan.rate}% monthly) · 2X = {formatINR(amount * 2)}</p>
+          )}
+        </div>
+
+        {wallets.filter((w) => w.type === "UPI").length > 0 && (
+          <div className="bg-card border border-border rounded-lg p-5">
+            <h2 className="font-semibold mb-3">UPI Payment</h2>
+            {wallets.filter((w) => w.type === "UPI").map((w) => (
+              <div key={w.id} className="border border-border rounded p-4 mb-3">
+                <p className="text-xs text-muted-foreground">{w.label}</p>
+                <p className="font-mono text-sm">{w.address}</p>
+                <img alt="QR" className="w-32 h-32 mt-2 bg-white p-1 rounded" src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${w.address}&pn=HAD&am=${amount}&cu=INR`)}`} />
+                <button type="button" onClick={() => { navigator.clipboard.writeText(w.address); toast.success("Copied"); }} className="text-xs text-[var(--gold)] mt-2">Copy UPI ID</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {wallets.filter((w) => w.type === "TRC20" || w.type === "BEP20").length > 0 && (
+          <div className="bg-card border border-border rounded-lg p-5">
+            <h2 className="font-semibold mb-3">Crypto Payment (USDT)</h2>
+            {wallets.filter((w) => ["TRC20", "BEP20"].includes(w.type)).map((w) => (
+              <div key={w.id} className="border border-border rounded p-4 mb-3">
+                <span className="text-xs bg-secondary px-2 py-1 rounded">{w.type}</span>
+                <p className="font-mono text-xs mt-2 break-all">{w.address}</p>
+                <button type="button" onClick={() => { navigator.clipboard.writeText(w.address); toast.success("Copied"); }} className="text-xs text-[var(--gold)] mt-2">Copy address</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <form onSubmit={onSubmit} className="bg-card border border-[var(--gold)]/40 rounded-lg p-5 space-y-3">
+          <h2 className="font-semibold">Submit Payment Proof</h2>
+
+          <div className="border border-dashed border-[var(--gold)]/60 rounded p-4 bg-secondary/30">
+            <p className="text-xs text-[var(--gold)] mb-2">📷 AUTO-FILL: Upload screenshot — system will read UTR, amount & method</p>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              disabled={scanning}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onScreenshot(f);
+              }}
+              className="w-full text-xs"
+            />
+            {scanning && <p className="text-xs text-[var(--gold)] mt-2 animate-pulse">Scanning screenshot...</p>}
+            {screenshotUrl && (
+              <div className="mt-3">
+                <img src={screenshotUrl} alt="screenshot" className="max-h-40 rounded border border-border" />
+                <p className="text-xs text-[var(--success)] mt-1">✅ Screenshot uploaded — verify the auto-filled fields below.</p>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground">Payment Method</label>
+            <select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full bg-input border border-border rounded px-3 py-2 mt-1 text-sm">
+              <option>UPI</option><option>USDT TRC20</option><option>USDT BEP20</option><option>BTC</option><option>ETH</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">UTR / Transaction ID *</label>
+            <input value={utr} onChange={(e) => setUtr(e.target.value)} className="w-full bg-input border border-border rounded px-3 py-2 mt-1 text-sm" />
+          </div>
+          <button disabled={submitting || scanning} className="w-full bg-[var(--gold)] text-[var(--primary-foreground)] py-2 rounded font-semibold disabled:opacity-50">
+            {submitting ? "Submitting..." : "Submit for verification"}
           </button>
-          <style>{`.input{width:100%;background:#0A1628;border:1px solid rgba(201,168,76,.25);border-radius:.5rem;padding:.6rem .75rem;color:white;outline:none}.input:focus{border-color:#C9A84C}`}</style>
         </form>
-      </main>
-    </div>
-  );
-}
-
-function UpiCard({ w, amount, hadId }: { w: Wallet; amount: number; hadId: string | undefined }) {
-  const name = w.wallet_label || "H.A.D.";
-  const params = new URLSearchParams({ pa: w.wallet_address, pn: name, cu: "INR" });
-  if (amount) params.set("am", String(amount));
-  if (hadId) params.set("tn", `HAD-${hadId}`);
-  const upiLink = `upi://pay?${params.toString()}`;
-  const open = (scheme: string) => { window.location.href = upiLink.replace("upi://", scheme); };
-  return (
-    <div className="rounded-xl border border-gold/30 bg-navy-light/50 p-5">
-      <div className="text-gold font-medium">{name}</div>
-      <div className="text-xs text-white/70 break-all mt-1 font-mono">{w.wallet_address}</div>
-      <div className="mt-3 bg-white p-2 rounded-lg w-fit mx-auto">
-        <QRCodeCanvas value={upiLink} size={140} />
       </div>
-      <div className="mt-3 grid grid-cols-4 gap-1">
-        <PayBtn label="GPay" onClick={() => open("gpay://upi/")} />
-        <PayBtn label="PhonePe" onClick={() => open("phonepe://pay?")} />
-        <PayBtn label="Paytm" onClick={() => open("paytmmp://pay?")} />
-        <PayBtn label="Any" onClick={() => open("upi://")} />
-      </div>
-      <button onClick={() => { navigator.clipboard.writeText(w.wallet_address); toast.success("UPI copied"); }}
-        className="mt-3 w-full text-xs text-gold hover:underline">Copy UPI ID</button>
-    </div>
+    </UserShell>
   );
-}
-
-function CryptoCard({ w, network }: { w: Wallet; network: "TRC20" | "BEP20" }) {
-  return (
-    <div className="rounded-xl border border-gold/30 bg-navy-light/50 p-5">
-      <div className="flex items-center justify-between">
-        <span className="text-gold font-medium">{w.wallet_label || "Wallet"}</span>
-        <span className="text-[10px] uppercase px-2 py-0.5 rounded bg-gold/15 text-gold tracking-widest">{network}</span>
-      </div>
-      <div className="text-xs text-white/70 break-all mt-2 font-mono">{w.wallet_address}</div>
-      <div className="mt-3 bg-white p-2 rounded-lg w-fit mx-auto">
-        <QRCodeCanvas value={w.wallet_address} size={140} />
-      </div>
-      <button onClick={() => { navigator.clipboard.writeText(w.wallet_address); toast.success("Address copied"); }}
-        className="mt-3 w-full text-xs text-gold hover:underline">Copy address</button>
-    </div>
-  );
-}
-
-function PayBtn({ label, onClick }: { label: string; onClick: () => void }) {
-  return <button type="button" onClick={onClick} className="px-2 py-1.5 text-xs rounded bg-gold text-navy font-medium">{label}</button>;
-}
-function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div className="rounded-md border border-gold/20 bg-navy p-3">
-      <div className="text-[10px] uppercase tracking-widest text-white/50">{label}</div>
-      <div className={`mt-1 font-serif text-xl ${accent ? "text-gold" : ""}`}>{value}</div>
-    </div>
-  );
-}
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block text-sm"><span className="text-xs text-white/60">{label}</span><div className="mt-1">{children}</div></label>;
-}
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(((reader.result as string) || "").split(",")[1] || "");
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }

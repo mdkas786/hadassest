@@ -1,73 +1,44 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { AdminShell } from "@/components/AdminShell";
+import { supabase } from "@/integrations/supabase/client";
+import { formatINR } from "@/lib/format";
 
 export const Route = createFileRoute("/admin/")({
-  head: () => ({ meta: [{ title: "Admin — H.A.D." }] }),
-  component: AdminHome,
+  head: () => ({ meta: [{ title: "Admin Dashboard" }] }),
+  component: AdminDash,
 });
 
-function AdminHome() {
-  const [stats, setStats] = useState({ users: 0, invested: 0, pending: 0, active: 0 });
-
-  async function loadStats() {
-    const [u, inv, pend, act] = await Promise.all([
-      supabase.from("profiles").select("id", { count: "exact", head: true }),
-      supabase.from("investments").select("amount_invested"),
-      supabase.from("transactions").select("id", { count: "exact", head: true }).eq("status", "pending"),
-      supabase.from("trading_assets").select("id", { count: "exact", head: true }).eq("status", "active"),
-    ]);
-    setStats({
-      users: u.count || 0,
-      invested: (inv.data || []).reduce((a, b) => a + Number(b.amount_invested), 0),
-      pending: pend.count || 0,
-      active: act.count || 0,
-    });
-  }
-
+function AdminDash() {
+  const [s, setS] = useState({ users: 0, invested: 0, pending: 0, trades: 0 });
   useEffect(() => {
-    loadStats();
-    const ch = supabase.channel("admin_home_stats")
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, loadStats)
-      .on("postgres_changes", { event: "*", schema: "public", table: "investments" }, loadStats)
-      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, loadStats)
-      .on("postgres_changes", { event: "*", schema: "public", table: "trading_assets" }, loadStats)
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    async function load() {
+      const [u, inv, pend, tr] = await Promise.all([
+        supabase.from("users").select("*", { count: "exact", head: true }),
+        supabase.from("investments").select("amount_invested"),
+        supabase.from("transactions").select("*", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("trading_assets").select("*", { count: "exact", head: true }).eq("status", "active"),
+      ]);
+      setS({
+        users: u.count ?? 0,
+        invested: (inv.data ?? []).reduce((a, b: any) => a + Number(b.amount_invested), 0),
+        pending: pend.count ?? 0,
+        trades: tr.count ?? 0,
+      });
+    }
+    load();
   }, []);
-
   return (
     <AdminShell title="Dashboard">
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card label="Total Users" value={stats.users} to="/admin/users" />
-        <Card label="Total Invested" value={`₹${stats.invested.toLocaleString("en-IN")}`} to="/admin/investments" />
-        <Card label="Pending Verifications" value={stats.pending} accent to="/admin/payments" />
-        <Card label="Active Trades" value={stats.active} to="/admin/trading" />
-      </div>
-      <div className="mt-10 grid gap-4 md:grid-cols-2">
-        <QuickAction title="Broadcast notification" to="/admin/notifications" />
-        <QuickAction title="Update wallets / UPI" to="/admin/wallets" />
-        <QuickAction title="Maintenance mode" to="/admin/settings" />
-        <QuickAction title="Add trading asset" to="/admin/trading" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Stat label="Total Users" value={String(s.users)} />
+        <Stat label="Total Invested" value={formatINR(s.invested)} />
+        <Stat label="Pending Verifications" value={String(s.pending)} highlight />
+        <Stat label="Active Trades" value={String(s.trades)} />
       </div>
     </AdminShell>
   );
 }
-
-function Card({ label, value, accent, to }: { label: string; value: string | number; accent?: boolean; to: string }) {
-  return (
-    <Link to={to} className={`block rounded-xl border p-6 transition hover:border-gold ${accent ? "border-gold bg-gold/5" : "border-gold/20 bg-navy-light/40"}`}>
-      <div className="text-xs text-white/60 uppercase tracking-widest">{label}</div>
-      <div className="mt-2 font-serif text-3xl text-gold">{value}</div>
-    </Link>
-  );
-}
-function QuickAction({ title, to }: { title: string; to: string }) {
-  return (
-    <Link to={to} className="rounded-xl border border-gold/20 bg-navy-light/40 p-5 hover:border-gold transition flex items-center justify-between">
-      <span>{title}</span>
-      <span className="text-gold">→</span>
-    </Link>
-  );
+function Stat({ label, value, highlight }: any) {
+  return <div className={`bg-card border ${highlight ? "border-[var(--gold)]/40" : "border-border"} rounded-lg p-5`}><p className="text-xs uppercase text-muted-foreground tracking-wider">{label}</p><p className={`text-2xl font-bold mt-2 ${highlight ? "text-[var(--gold)]" : ""}`}>{value}</p></div>;
 }

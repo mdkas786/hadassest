@@ -1,337 +1,313 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { QRCodeCanvas } from "qrcode.react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 import { AdminShell } from "@/components/AdminShell";
-import { PLANS, planRate, fmtInr } from "@/lib/plans";
+import { supabase } from "@/integrations/supabase/client";
+import { formatINR, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/investments")({
   head: () => ({ meta: [{ title: "Investments — Admin" }] }),
-  component: AdminInvestments,
+  component: AdminInv,
 });
 
-type Inv = {
-  id: string; had_id: string; user_id: string;
-  amount_invested: number; amount_received: number;
-  plan_name: string; plan_rate: number; expected_2x: number | null;
-  status: string; start_date: string; created_at: string;
-};
-type Prof = { id: string; had_id: string; full_name: string; mobile: string | null; upi_id: string | null; trc20_wallet: string | null; bep20_wallet: string | null };
-
-function AdminInvestments() {
-  const [rows, setRows] = useState<Inv[]>([]);
-  const [profiles, setProfiles] = useState<Record<string, Prof>>({});
-  const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<Inv | null>(null);
+function AdminInv() {
+  const [rows, setRows] = useState<any[]>([]);
+  const [users, setUsers] = useState<Record<string, any>>({});
+  const [selected, setSelected] = useState<any | null>(null);
   const [q, setQ] = useState("");
-  const [roiMonth, setRoiMonth] = useState(() => new Date().toISOString().slice(0, 7));
-  const [roiBusy, setRoiBusy] = useState(false);
-
-  async function runBulkRoi() {
-    if (!confirm(`Credit ${roiMonth} monthly ROI to ALL active investments? Already-processed ones will be skipped.`)) return;
-    setRoiBusy(true);
-    try {
-      const { data, error } = await supabase.rpc("process_monthly_roi" as any, { _month: roiMonth });
-      if (error) throw error;
-      const row = (data as any)?.[0] || {};
-      toast.success(`Credited ${row.processed || 0} investors · ${fmtInr(Number(row.total_amount || 0))} total`);
-      load();
-    } catch (e: any) { toast.error(e.message); } finally { setRoiBusy(false); }
-  }
-
 
   async function load() {
-    setLoading(true);
-    const { data: inv } = await supabase.from("investments").select("*").order("created_at", { ascending: false }).limit(500);
-    const list = (inv as Inv[]) || [];
-    setRows(list);
-    if (list.length > 0) {
-      const ids = Array.from(new Set(list.map((r) => r.had_id)));
-      const { data: prof } = await supabase.from("profiles").select("id,had_id,full_name,mobile,upi_id,trc20_wallet,bep20_wallet").in("had_id", ids);
-      const map: Record<string, Prof> = {};
-      (prof || []).forEach((p: any) => { map[p.had_id] = p; });
-      setProfiles(map);
-    }
-    setLoading(false);
+    const { data } = await supabase.from("investments").select("*").order("created_at", { ascending: false });
+    setRows(data ?? []);
+    const { data: us } = await supabase.from("users").select("*");
+    setUsers(Object.fromEntries((us ?? []).map((u: any) => [u.had_id, u])));
   }
   useEffect(() => { load(); }, []);
 
-  useEffect(() => {
-    const ch = supabase.channel("admin_inv")
-      .on("postgres_changes", { event: "*", schema: "public", table: "investments" }, () => load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "return_payments" }, () => load())
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, []);
+  const totals = rows.reduce((a, r) => ({
+    invested: a.invested + Number(r.amount_invested),
+    received: a.received + Number(r.total_income_received),
+  }), { invested: 0, received: 0 });
+  const target2x = totals.invested * 2;
 
-  const totals = useMemo(() => {
-    const invested = rows.reduce((a, b) => a + Number(b.amount_invested), 0);
-    const received = rows.reduce((a, b) => a + Number(b.amount_received), 0);
-    return { invested, received, target: invested * 2, remaining: Math.max(invested * 2 - received, 0) };
-  }, [rows]);
+  // Aggregate investments by had_id into one row per user
+  const grouped: Record<string, any> = {};
+  rows.forEach((r) => {
+    const g = grouped[r.had_id] || (grouped[r.had_id] = {
+      had_id: r.had_id, items: [], invested: 0, received: 0, cap: 0, monthly: 0, anyActive: false, start_date: r.start_date,
+    });
+    g.items.push(r);
+    g.invested += Number(r.amount_invested);
+    g.received += Number(r.total_income_received);
+    g.cap += r.is_special && r.total_return ? Number(r.total_return) : Number(r.amount_invested) * 2;
+    g.monthly += r.is_special && r.monthly_roi ? Number(r.monthly_roi) : (Number(r.amount_invested) * Number(r.plan_rate)) / 100;
+    if (r.status === "active") g.anyActive = true;
+    if (new Date(r.start_date) < new Date(g.start_date)) g.start_date = r.start_date;
+  });
+  const groupedRows = Object.values(grouped).sort((a: any, b: any) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
+  const filtered = groupedRows.filter((g: any) => !q || g.had_id.toLowerCase().includes(q.toLowerCase()) || (users[g.had_id]?.name ?? "").toLowerCase().includes(q.toLowerCase()));
 
-  const filtered = rows.filter((r) => !q ||
-    r.had_id.toLowerCase().includes(q.toLowerCase()) ||
-    (profiles[r.had_id]?.full_name || "").toLowerCase().includes(q.toLowerCase()));
+  async function markPaid(inv: any, amount: number) {
+    if (!amount || amount <= 0) return;
+    const cap = inv.is_special && inv.total_return ? Number(inv.total_return) : Number(inv.amount_invested) * 2;
+    const remaining = cap - Number(inv.total_income_received);
+    const pay = Math.min(amount, remaining);
+    await supabase.from("sponsor_income").insert({
+      earner_had_id: inv.had_id, type: "roi", percentage: inv.plan_rate,
+      base_amount: inv.amount_invested, income_amount: pay, status: "paid",
+      paid_at: new Date().toISOString(), investment_id: inv.id,
+    });
+    const newReceived = Number(inv.total_income_received) + pay;
+    await supabase.from("investments").update({
+      amount_received: Number(inv.amount_received) + pay,
+      total_income_received: newReceived,
+      status: newReceived >= cap ? "completed" : "active",
+    }).eq("id", inv.id);
+    const { data: u } = await supabase.from("users").select("referred_by").eq("had_id", inv.had_id).single();
+    if (u?.referred_by) {
+      const { count } = await supabase.from("users").select("*", { count: "exact", head: true }).eq("referred_by", u.referred_by);
+      if ((count ?? 0) >= 2) {
+        const level = pay * 0.1;
+        await supabase.from("sponsor_income").insert({
+          earner_had_id: u.referred_by, source_had_id: inv.had_id, type: "level",
+          percentage: 10, base_amount: pay, income_amount: level, status: "pending",
+        });
+      }
+    }
+    await supabase.from("notifications").insert({ had_id: inv.had_id, title: "Return Received 💰", body: `${formatINR(pay)} aapke account mein credit ho gaya.`, type: "success" });
+    toast.success("Payment recorded");
+    load();
+    setSelected(null);
+  }
 
   return (
     <AdminShell title="Investments">
-      <div className="grid sm:grid-cols-4 gap-3 mb-6">
-        <Card label="Total Invested" value={fmtInr(totals.invested)} />
-        <Card label="Total Received" value={fmtInr(totals.received)} />
-        <Card label="2X Target" value={fmtInr(totals.target)} />
-        <Card label="Remaining" value={fmtInr(totals.remaining)} accent />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <Card label="Total Invested" value={formatINR(totals.invested)} />
+        <Card label="Total Received" value={formatINR(totals.received)} />
+        <Card label="2X Target" value={formatINR(target2x)} />
+        <Card label="Remaining" value={formatINR(target2x - totals.received)} highlight />
       </div>
-
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search HAD ID or name…"
-          className="w-full md:w-96 rounded-md bg-navy-light border border-gold/20 px-3 py-2 outline-none focus:border-gold" />
-        <div className="ml-auto flex items-center gap-2">
-          <input type="month" value={roiMonth} onChange={(e) => setRoiMonth(e.target.value)}
-            className="rounded bg-navy-light border border-gold/20 text-sm px-3 py-2" />
-          <button onClick={runBulkRoi} disabled={roiBusy}
-            className="px-4 py-2 rounded bg-gold text-navy font-medium text-sm disabled:opacity-50">
-            {roiBusy ? "Processing…" : "Bulk Credit Monthly ROI"}
-          </button>
-        </div>
-      </div>
-
-
-      <div className="overflow-x-auto rounded-xl border border-gold/20">
-        <table className="w-full text-sm">
-          <thead className="bg-navy-light/60 text-white/70">
-            <tr>
-              <th className="text-left p-3">HAD ID</th><th className="text-left p-3">Name</th>
-              <th className="text-left p-3">Plan</th>
-              <th className="text-right p-3">Invested</th><th className="text-right p-3">Received</th>
-              <th className="text-right p-3">2X Target</th><th className="text-right p-3">Remaining</th>
-              <th className="text-left p-3">Start</th><th className="text-left p-3">Status</th>
-            </tr>
-          </thead>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search HAD ID or name..." className="w-full bg-input border border-border rounded px-3 py-2 text-sm mb-3" />
+      <div className="bg-card border border-border rounded-lg overflow-x-auto">
+        <table className="w-full text-sm min-w-[800px]">
+          <thead className="bg-secondary/50 text-xs text-muted-foreground"><tr><th className="text-left p-3">HAD ID</th><th className="text-left p-3">Name</th><th className="text-left p-3">Plans</th><th className="text-right p-3">Invested</th><th className="text-right p-3">Monthly</th><th className="text-right p-3">Received</th><th className="text-right p-3">2X Target</th><th className="text-right p-3">Remaining</th><th className="text-left p-3">Status</th></tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={9} className="p-6 text-center text-white/60">Loading…</td></tr> :
-              filtered.length === 0 ? <tr><td colSpan={9} className="p-6 text-center text-white/60">No investments yet.</td></tr> :
-              filtered.map((r) => {
-                const remaining = Math.max(Number(r.expected_2x || r.amount_invested * 2) - Number(r.amount_received), 0);
-                return (
-                  <tr key={r.id} className="border-t border-gold/10 hover:bg-gold/5 cursor-pointer" onClick={() => setSelected(r)}>
-                    <td className="p-3 font-mono text-gold">{r.had_id}</td>
-                    <td className="p-3">{profiles[r.had_id]?.full_name || "—"}</td>
-                    <td className="p-3 capitalize">{r.plan_name} ({r.plan_rate}%)</td>
-                    <td className="p-3 text-right">{fmtInr(Number(r.amount_invested))}</td>
-                    <td className="p-3 text-right">{fmtInr(Number(r.amount_received))}</td>
-                    <td className="p-3 text-right text-white/70">{fmtInr(Number(r.expected_2x || r.amount_invested * 2))}</td>
-                    <td className="p-3 text-right text-gold">{fmtInr(remaining)}</td>
-                    <td className="p-3 text-white/70">{new Date(r.start_date).toLocaleDateString()}</td>
-                    <td className="p-3">
-                      <span className={`text-xs px-2 py-0.5 rounded ${
-                        r.status === "active" ? "bg-emerald-500/15 text-emerald-300" :
-                        r.status === "completed" ? "bg-gold/15 text-gold" : "bg-white/10 text-white/60"}`}>{r.status}</span>
-                    </td>
-                  </tr>
-                );
-              })}
+            {filtered.map((g: any) => {
+              const planLabel = g.items.length === 1 ? `${g.items[0].plan_name} (${Number(g.items[0].plan_rate)}%)` : `${g.items.length} Active Plans`;
+              return (
+                <tr key={g.had_id} className="border-t border-border hover:bg-secondary/30 cursor-pointer" onClick={() => setSelected(g)}>
+                  <td className="p-3 text-[var(--gold)] underline">{g.had_id}</td>
+                  <td className="p-3">{users[g.had_id]?.name ?? "—"}</td>
+                  <td className="p-3">{planLabel}</td>
+                  <td className="p-3 text-right">{formatINR(g.invested)}</td>
+                  <td className="p-3 text-right">{formatINR(g.monthly)}</td>
+                  <td className="p-3 text-right">{formatINR(g.received)}</td>
+                  <td className="p-3 text-right">{formatINR(g.cap)}</td>
+                  <td className="p-3 text-right text-[var(--gold)]">{formatINR(g.cap - g.received)}</td>
+                  <td className="p-3"><span className={`text-xs px-2 py-1 rounded ${g.anyActive ? "bg-[var(--success)]/20 text-[var(--success)]" : "bg-secondary"}`}>{g.anyActive ? "active" : "completed"}</span></td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
-
-      {selected && <InvestmentModal inv={selected} prof={profiles[selected.had_id]} onClose={() => setSelected(null)} onChanged={load} />}
+      {selected && <UserDetailModal group={selected} user={users[selected.had_id]} onClose={() => setSelected(null)} onPay={markPaid} />}
     </AdminShell>
   );
 }
 
-function Card({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div className={`rounded-xl border p-5 ${accent ? "border-gold bg-gold/5" : "border-gold/20 bg-navy-light/40"}`}>
-      <div className="text-[10px] uppercase tracking-widest text-white/60">{label}</div>
-      <div className={`mt-1 font-serif text-2xl ${accent ? "text-gold" : ""}`}>{value}</div>
-    </div>
-  );
+function Card({ label, value, highlight }: any) {
+  return <div className={`bg-card border ${highlight ? "border-[var(--gold)]/40" : "border-border"} rounded p-4`}><p className="text-xs uppercase text-muted-foreground tracking-wider">{label}</p><p className={`text-xl font-bold mt-1 ${highlight ? "text-[var(--gold)]" : ""}`}>{value}</p></div>;
 }
 
-function InvestmentModal({ inv, prof, onClose, onChanged }: { inv: Inv; prof: Prof | undefined; onClose: () => void; onChanged: () => void }) {
-  const rate = inv.plan_rate || planRate(inv.plan_name);
-  const monthly = Number(inv.amount_invested) * (rate / 100);
-  const received = Number(inv.amount_received);
-  const target = Number(inv.expected_2x || inv.amount_invested * 2);
-  const remaining = Math.max(target - received, 0);
-  const pct = target > 0 ? Math.min(100, (received / target) * 100) : 0;
-
-  const startDate = new Date(inv.start_date);
-  const today = new Date();
-  const days = Math.max(0, Math.floor((today.getTime() - startDate.getTime()) / 86400000));
-  const monthsCompleted = Math.floor(days / 30);
-  const eligibleTotal = monthsCompleted * monthly;
-  const eligibleNow = Math.max(eligibleTotal - received, 0);
-
-  const monthsTo2x = monthly > 0 ? Math.ceil(remaining / monthly) : 0;
-
-  const [pay, setPay] = useState({ amount: "", method: "UPI", txn_ref: "", notes: "" });
-  const [returns, setReturns] = useState<any[]>([]);
-  const [txns, setTxns] = useState<any[]>([]);
+function UserDetailModal({ group, user, onClose, onPay }: any) {
+  const had = group.had_id;
+  const items = group.items as any[];
+  const [payTarget, setPayTarget] = useState<string>(items[0]?.id ?? "");
+  const targetInv = items.find((i) => i.id === payTarget) ?? items[0];
+  const targetMonthly = targetInv
+    ? (targetInv.is_special && targetInv.monthly_roi
+        ? Number(targetInv.monthly_roi)
+        : Math.round(Number(targetInv.amount_invested) * Number(targetInv.plan_rate) / 100))
+    : 0;
+  const [amt, setAmt] = useState<number>(targetMonthly);
+  useEffect(() => { setAmt(targetMonthly); }, [payTarget]);
+  const [tx, setTx] = useState<any[]>([]);
+  const [directs, setDirects] = useState<any[]>([]);
+  const [teamCount, setTeamCount] = useState(0);
+  const [income, setIncome] = useState({ ref: 0, level: 0, roi: 0, pending: 0 });
+  const [sponsor, setSponsor] = useState<any>(null);
+  const [signedShot, setSignedShot] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    supabase.from("return_payments").select("*").eq("had_id", inv.had_id).order("created_at", { ascending: false })
-      .then(({ data }) => setReturns(data || []));
-    supabase.from("transactions").select("*").eq("had_id", inv.had_id).order("created_at", { ascending: false }).limit(20)
-      .then(({ data }) => setTxns(data || []));
-  }, [inv.had_id]);
+    async function load() {
+      const [{ data: txs }, { data: refs }, { data: si }, teamRes, sp] = await Promise.all([
+        supabase.from("transactions").select("*").eq("had_id", had).order("created_at", { ascending: false }),
+        supabase.from("users").select("had_id, name, created_at").eq("referred_by", had),
+        supabase.from("sponsor_income").select("*").eq("earner_had_id", had),
+        supabase.rpc("get_team_count", { root_had_id: had }),
+        user?.referred_by
+          ? supabase.from("users").select("had_id, name").eq("had_id", user.referred_by).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
+      setTx(txs ?? []);
+      setDirects(refs ?? []);
+      setTeamCount((teamRes as any)?.data ?? 0);
+      setSponsor((sp as any)?.data ?? null);
+      const ic = { ref: 0, level: 0, roi: 0, pending: 0 };
+      (si ?? []).forEach((s: any) => {
+        const amt = Number(s.income_amount);
+        if (s.status === "pending") ic.pending += amt;
+        else if (s.type === "referral") ic.ref += amt;
+        else if (s.type === "level") ic.level += amt;
+        else if (s.type === "roi") ic.roi += amt;
+      });
+      setIncome(ic);
+      // signed urls for screenshots
+      const paths = (txs ?? []).map((t: any) => t.screenshot_url).filter(Boolean);
+      if (paths.length) {
+        const { data: signed } = await supabase.storage.from("payment-screenshots").createSignedUrls(paths, 3600);
+        const m: Record<string, string> = {};
+        (signed ?? []).forEach((s: any) => { if (s.signedUrl) m[s.path] = s.signedUrl; });
+        setSignedShot(m);
+      }
+    }
+    load();
+  }, [had, user?.referred_by]);
 
-  async function pay_return() {
-    const amt = Number(pay.amount);
-    if (!amt || amt <= 0) { toast.error("Amount required"); return; }
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from("return_payments").insert({
-      had_id: inv.had_id, user_id: inv.user_id, amount: amt,
-      method: pay.method, txn_ref: pay.txn_ref || null, notes: pay.notes || null,
-      paid_by: user?.id || null,
-    } as any);
-    if (error) { toast.error(error.message); return; }
-    const newReceived = received + amt;
-    await supabase.from("investments").update({
-      amount_received: newReceived,
-      status: newReceived >= target ? "completed" : "active",
-    }).eq("id", inv.id);
-    await supabase.from("notifications").insert({
-      had_id: inv.had_id, title: "Return Received! 💰",
-      body: `${fmtInr(amt)} aapke account mein credit ho gayi via ${pay.method}.`,
-      notif_type: "success",
-    });
-    toast.success("Return paid");
-    setPay({ amount: "", method: "UPI", txn_ref: "", notes: "" });
-    onChanged();
-  }
+  const totalEarned = income.roi + income.ref + income.level;
+  const totalRemaining = Math.max(0, group.cap - totalEarned);
+
+  const upi = user?.upi_id;
+  const trc = user?.trc20_wallet;
+  const bep = user?.bep20_wallet;
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 grid place-items-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-navy-light border border-gold/30 rounded-xl p-6 w-full max-w-4xl my-8 space-y-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between">
+    <div className="fixed inset-0 bg-black/80 z-40 flex items-start justify-center p-4 overflow-y-auto">
+      <div className="bg-card border border-border rounded-lg max-w-4xl w-full p-6 my-8">
+        <div className="flex justify-between items-start mb-4">
           <div>
-            <p className="font-mono text-gold text-sm">{inv.had_id}</p>
-            <h2 className="font-serif text-2xl">{prof?.full_name || "—"}</h2>
-            <div className="flex gap-2 mt-1 flex-wrap">
-              <span className="text-xs px-2 py-0.5 rounded bg-gold/15 text-gold capitalize">{inv.plan_name} ({rate}%)</span>
-              <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-white/70 capitalize">{inv.status}</span>
+            <p className="text-xs text-[var(--gold)]">{had}</p>
+            <h2 className="text-2xl font-bold">{user?.name ?? "—"}</h2>
+            <p className="text-xs text-muted-foreground">{user?.email} · {user?.mobile} · {user?.city}</p>
+            <p className="text-xs text-muted-foreground">Sponsor: {sponsor ? `${sponsor.name} (${sponsor.had_id})` : "Direct"} · Joined: {user?.created_at ? formatDate(user.created_at) : "—"}</p>
+            <div className="flex gap-2 mt-2">
+              <span className="text-xs bg-[var(--gold)]/20 text-[var(--gold)] px-2 py-0.5 rounded">{items.length} Plan{items.length > 1 ? "s" : ""}</span>
+              <span className="text-xs bg-secondary px-2 py-0.5 rounded">{group.anyActive ? "active" : "completed"}</span>
+              <span className="text-xs bg-secondary px-2 py-0.5 rounded">{user?.status ?? "active"}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={async () => {
-                if (!confirm(`Delete investment for ${inv.had_id}? This removes the investment record (transactions and returns are kept).`)) return;
-                const { error } = await supabase.from("investments").delete().eq("id", inv.id);
-                if (error) { toast.error(error.message); return; }
-                toast.success("Investment deleted");
-                onClose();
-                onChanged();
-              }}
-              className="px-3 py-1.5 text-xs rounded border border-red-400/40 text-red-300 hover:bg-red-500/10"
-            >Delete investment</button>
-            <button onClick={onClose} className="text-white/60 hover:text-gold">✕</button>
-          </div>
+          <button onClick={onClose} className="text-2xl px-2">×</button>
         </div>
 
-        <div className="grid sm:grid-cols-4 gap-3">
-          <Card label="Invested" value={fmtInr(Number(inv.amount_invested))} />
-          <Card label="Received" value={fmtInr(received)} />
-          <Card label="2X Target" value={fmtInr(target)} />
-          <Card label="Remaining" value={fmtInr(remaining)} accent />
-        </div>
-        <div>
-          <div className="flex justify-between text-xs text-white/60 mb-1"><span>2X progress</span><span>{pct.toFixed(1)}%</span></div>
-          <div className="h-3 rounded-full bg-white/10 overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-gold to-amber-300" style={{ width: `${pct}%` }} />
+        <Section title="📦 Active Slabs">
+          <div className="space-y-2">
+            {items.map((it: any, i: number) => {
+              const m = it.is_special && it.monthly_roi ? Number(it.monthly_roi) : Math.round(Number(it.amount_invested) * Number(it.plan_rate) / 100);
+              const c = it.is_special && it.total_return ? Number(it.total_return) : Number(it.amount_invested) * 2;
+              return (
+                <div key={it.id} className="bg-secondary/30 rounded p-3 text-xs grid grid-cols-2 md:grid-cols-6 gap-2">
+                  <div><p className="text-muted-foreground">Plan {i + 1}</p><p className="font-semibold text-[var(--gold)]">{it.plan_name}</p></div>
+                  <div><p className="text-muted-foreground">Rate</p><p className="font-semibold">{it.plan_rate}%</p></div>
+                  <div><p className="text-muted-foreground">Amount</p><p className="font-semibold">{formatINR(it.amount_invested)}</p></div>
+                  <div><p className="text-muted-foreground">Monthly</p><p className="font-semibold">{formatINR(m)}</p></div>
+                  <div><p className="text-muted-foreground">2X Cap</p><p className="font-semibold">{formatINR(c)}</p></div>
+                  <div><p className="text-muted-foreground">Status</p><p className="font-semibold">{it.status}</p></div>
+                </div>
+              );
+            })}
           </div>
-        </div>
+        </Section>
 
-        {/* Projections */}
-        <section className="rounded-xl border border-gold/20 bg-navy/40 p-5">
-          <h3 className="font-serif text-lg mb-3">Return Projection (algorithm)</h3>
-          <table className="w-full text-sm">
-            <thead className="text-white/60 text-xs uppercase"><tr><th className="text-left py-1">Period</th><th className="text-right">Expected Return</th></tr></thead>
-            <tbody>
-              <Row label="1 Month" value={fmtInr(monthly)} />
-              <Row label="3 Months" value={fmtInr(monthly * 3)} />
-              <Row label="6 Months" value={fmtInr(monthly * 6)} />
-              <Row label="1 Year" value={fmtInr(Math.min(monthly * 12, target))} />
-              <Row label={`Until 2X (~${monthsTo2x} months)`} value={fmtInr(remaining)} />
-            </tbody>
-          </table>
-          <div className="mt-4 grid sm:grid-cols-2 gap-3 text-sm">
-            <div className="rounded-md border border-gold/15 bg-navy/60 p-3">
-              <div className="text-xs text-white/60">Days since start</div>
-              <div className="font-serif text-lg">{days} ({monthsCompleted} months)</div>
-            </div>
-            <div className={`rounded-md border p-3 ${eligibleNow > 0 ? "border-emerald-400/40 bg-emerald-500/10" : "border-white/10 bg-white/5"}`}>
-              <div className="text-xs text-white/60">Eligible today</div>
-              <div className={`font-serif text-lg ${eligibleNow > 0 ? "text-emerald-300" : ""}`}>{fmtInr(eligibleNow)}</div>
+        <Section title="💰 Total Portfolio">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <Card label="Total Invested" value={formatINR(group.invested)} />
+            <Card label="Total Monthly ROI" value={formatINR(group.monthly)} />
+            <Card label="2X Target" value={formatINR(group.cap)} />
+            <Card label="Remaining" value={formatINR(totalRemaining)} highlight />
+            <Card label="ROI Income" value={formatINR(income.roi)} />
+            <Card label="Sponsor Income" value={formatINR(income.ref)} />
+            <Card label="Partner Income" value={formatINR(income.level)} />
+            <Card label="Total Earned" value={formatINR(totalEarned)} />
+          </div>
+          {income.pending > 0 && <p className="text-xs text-[var(--warning)] mt-2">Pending: {formatINR(income.pending)}</p>}
+        </Section>
+
+        <Section title="👥 Flat Sponsor Network">
+          <p className="text-sm text-muted-foreground mb-2">Direct referrals: <b>{directs.length}</b> · Total team (entire downline, flat): <b className="text-[var(--gold)]">{teamCount}</b> · Partner eligibility: {directs.length >= 2 ? <span className="text-[var(--success)]">✅ Active</span> : <span className="text-destructive">Needs {2 - directs.length} more</span>}</p>
+          <div className="bg-secondary/30 rounded p-2 max-h-32 overflow-y-auto">
+            {directs.length === 0 && <p className="text-xs text-muted-foreground">No direct referrals yet.</p>}
+            <div className="flex flex-wrap gap-2">
+              {directs.map((d: any) => (
+                <span key={d.had_id} className="text-xs bg-card border border-border px-2 py-1 rounded">{d.name} <span className="text-[var(--gold)]">{d.had_id}</span></span>
+              ))}
             </div>
           </div>
-        </section>
+        </Section>
 
-        {/* User wallets */}
-        <section className="rounded-xl border border-gold/20 bg-navy/40 p-5">
-          <h3 className="font-serif text-lg mb-3">User Receiving Wallets</h3>
-          <div className="grid md:grid-cols-3 gap-3 text-sm">
-            <WalletRow label="UPI" value={prof?.upi_id} qr />
-            <WalletRow label="TRC20" value={prof?.trc20_wallet} qr />
-            <WalletRow label="BEP20" value={prof?.bep20_wallet} qr />
+        <Section title="🏦 Payout Addresses (where user receives returns)">
+          <div className="grid md:grid-cols-3 gap-3">
+            {upi && <PayoutAddr type="UPI" addr={upi} qrData={`upi://pay?pa=${upi}&pn=${encodeURIComponent(user?.name ?? "")}`} />}
+            {trc && <PayoutAddr type="TRC20" addr={trc} qrData={trc} />}
+            {bep && <PayoutAddr type="BEP20" addr={bep} qrData={bep} />}
+            {!upi && !trc && !bep && <p className="text-xs text-muted-foreground">User has not saved any payout address.</p>}
           </div>
-        </section>
+        </Section>
 
-        {/* Pay return */}
-        <section className="rounded-xl border border-gold/20 bg-navy/40 p-5">
-          <h3 className="font-serif text-lg mb-3">Mark Return Paid</h3>
-          <div className="grid sm:grid-cols-4 gap-3">
-            <input type="number" placeholder="Amount" value={pay.amount} onChange={(e) => setPay({ ...pay, amount: e.target.value })} className="modal-input" />
-            <select value={pay.method} onChange={(e) => setPay({ ...pay, method: e.target.value })} className="modal-input">
-              <option>UPI</option><option>TRC20</option><option>BEP20</option>
+        <Section title="📜 Deposit History">
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {tx.length === 0 && <p className="text-xs text-muted-foreground">No transactions.</p>}
+            {tx.map((t: any) => (
+              <div key={t.id} className="bg-secondary/30 rounded p-3 text-xs flex flex-wrap items-center gap-2">
+                <span className="bg-card px-2 py-0.5 rounded">{t.payment_method}</span>
+                <span className="font-semibold text-[var(--gold)]">{formatINR(t.amount)}</span>
+                <span className="font-mono">UTR: {t.utr_number}</span>
+                <span className={`px-2 py-0.5 rounded ${t.status === "verified" ? "bg-[var(--success)]/20 text-[var(--success)]" : t.status === "pending" ? "bg-[var(--warning)]/20 text-[var(--warning)]" : "bg-destructive/20 text-destructive"}`}>{t.status}</span>
+                <span className="text-muted-foreground ml-auto">{new Date(t.created_at).toLocaleString()}</span>
+                {t.screenshot_url && signedShot[t.screenshot_url] && (
+                  <a href={signedShot[t.screenshot_url]} target="_blank" rel="noreferrer" className="text-[var(--gold)] underline">View screenshot</a>
+                )}
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="✅ Mark Return Paid">
+          <div className="space-y-2">
+            <select value={payTarget} onChange={(e) => setPayTarget(e.target.value)} className="w-full bg-input border border-border rounded px-3 py-2 text-sm">
+              {items.map((it: any) => (
+                <option key={it.id} value={it.id}>{it.plan_name} ({it.plan_rate}%) · Invested {formatINR(it.amount_invested)}</option>
+              ))}
             </select>
-            <input placeholder="Txn ref" value={pay.txn_ref} onChange={(e) => setPay({ ...pay, txn_ref: e.target.value })} className="modal-input" />
-            <input placeholder="Notes" value={pay.notes} onChange={(e) => setPay({ ...pay, notes: e.target.value })} className="modal-input" />
+            <div className="flex gap-2">
+              <input type="number" value={amt} onChange={(e) => setAmt(Number(e.target.value))} className="flex-1 bg-input border border-border rounded px-3 py-2 text-sm" />
+              <button onClick={() => onPay(targetInv, amt)} className="bg-[var(--gold)] text-[var(--primary-foreground)] px-4 py-2 rounded font-semibold text-sm">Confirm Payment</button>
+            </div>
+            <p className="text-xs text-muted-foreground">Default = selected slab monthly ROI. Auto-capped at 2X remaining of that slab.</p>
           </div>
-          <button onClick={pay_return} className="mt-3 px-5 py-2 rounded bg-gold text-navy text-sm font-medium">Confirm Payment</button>
-          <style>{`.modal-input{background:#0A1628;border:1px solid rgba(201,168,76,.25);border-radius:.5rem;padding:.5rem .75rem;color:white;outline:none;font-size:.875rem}`}</style>
-        </section>
-
-        {/* History */}
-        <section className="grid md:grid-cols-2 gap-4">
-          <HistoryBox title="Returns paid out" rows={returns.map((r: any) => ({ when: r.created_at, label: `${r.method} · ${r.txn_ref || "—"}`, amt: Number(r.amount), kind: "out" }))} />
-          <HistoryBox title="Investment transactions" rows={txns.map((t: any) => ({ when: t.created_at, label: `${t.type} · ${t.status}`, amt: Number(t.amount), kind: t.status === "verified" ? "in" : "pending" }))} />
-        </section>
+        </Section>
       </div>
     </div>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  return <tr className="border-t border-white/5"><td className="py-1.5">{label}</td><td className="py-1.5 text-right tabular-nums">{value}</td></tr>;
-}
-function WalletRow({ label, value, qr }: { label: string; value?: string | null; qr?: boolean }) {
-  if (!value) return <div className="rounded-md border border-dashed border-white/10 p-3 text-xs text-white/40">{label}: not set</div>;
+function Section({ title, children }: any) {
   return (
-    <div className="rounded-md border border-gold/15 bg-navy/60 p-3">
-      <div className="text-xs text-white/60">{label}</div>
-      <div className="font-mono text-xs break-all mt-1">{value}</div>
-      {qr && <div className="bg-white p-1.5 rounded mt-2 w-fit"><QRCodeCanvas value={value} size={90} /></div>}
-      <button onClick={() => { navigator.clipboard.writeText(value); toast.success("Copied"); }} className="mt-2 text-xs text-gold hover:underline">Copy</button>
+    <div className="mb-5">
+      <h3 className="text-sm font-semibold text-[var(--gold)] mb-2">{title}</h3>
+      {children}
     </div>
   );
 }
-function HistoryBox({ title, rows }: { title: string; rows: { when: string; label: string; amt: number; kind: string }[] }) {
+
+function PayoutAddr({ type, addr, qrData }: { type: string; addr: string; qrData: string }) {
   return (
-    <div className="rounded-xl border border-gold/20 bg-navy/40 p-4">
-      <h4 className="font-serif text-sm text-gold mb-2">{title}</h4>
-      {rows.length === 0 ? <div className="text-xs text-white/50">None.</div> : (
-        <ul className="space-y-1 text-xs">
-          {rows.slice(0, 10).map((r, i) => (
-            <li key={i} className="flex justify-between border-b border-white/5 py-1">
-              <span className="text-white/70">{new Date(r.when).toLocaleDateString()} · {r.label}</span>
-              <span className={`tabular-nums ${r.kind === "in" ? "text-emerald-300" : r.kind === "out" ? "text-gold" : "text-amber-300"}`}>{fmtInr(r.amt)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="border border-border rounded p-3 bg-secondary/30">
+      <span className="text-xs bg-card px-2 py-0.5 rounded">{type}</span>
+      <p className="font-mono text-xs mt-2 break-all">{addr}</p>
+      <img alt={type + " QR"} className="w-32 h-32 mt-2 bg-white p-1 rounded" src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`} />
+      <button onClick={() => { navigator.clipboard.writeText(addr); }} className="text-xs text-[var(--gold)] mt-1 block">Copy</button>
     </div>
   );
 }

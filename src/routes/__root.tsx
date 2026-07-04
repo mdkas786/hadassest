@@ -7,11 +7,11 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { MaintenanceGate } from "@/components/MaintenanceGate";
-import { MobileNav } from "@/components/MobileNav";
-import { Toaster } from "@/components/ui/sonner";
+import { reportLovableError } from "../lib/lovable-error-reporting";
+import { AppToaster } from "@/components/ui/sonner-toast";
 
 function NotFoundComponent() {
   return (
@@ -38,6 +38,9 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+  useEffect(() => {
+    reportLovableError(error, { boundary: "tanstack_root_error_component" });
+  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -75,23 +78,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Sath Apka Bharosa Hamara" },
+      { title: "Hadassests" },
+      { name: "description", content: "H.A.D. Asset Hub is a financial investment platform with user and admin portals." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Sath Apka Bharosa Hamara" },
+      { property: "og:title", content: "Hadassests" },
+      { property: "og:description", content: "H.A.D. Asset Hub is a financial investment platform with user and admin portals." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Lovable App" },
-      { name: "twitter:description", content: "Sath Apka Bharosa Hamara" },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/LwZTAUxmweVjSozIzeoLFNfzzk32/social-images/social-1779911911390-1000340856.webp" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/LwZTAUxmweVjSozIzeoLFNfzzk32/social-images/social-1779911911390-1000340856.webp" },
+      { name: "twitter:title", content: "Hadassests" },
+      { name: "twitter:description", content: "H.A.D. Asset Hub is a financial investment platform with user and admin portals." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3cd7c7a3-16de-419b-bb7e-ee761a02d070/id-preview-7a69885d--e70e7d9c-5ce7-49cb-be50-85a6e99b45f8.lovable.app-1780818638655.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3cd7c7a3-16de-419b-bb7e-ee761a02d070/id-preview-7a69885d--e70e7d9c-5ce7-49cb-be50-85a6e99b45f8.lovable.app-1780818638655.png" },
     ],
     links: [
-      { rel: "stylesheet", href: appCss },
-      { rel: "manifest", href: "/manifest.json" },
-      { rel: "apple-touch-icon", href: "/favicon.ico" },
+      {
+        rel: "stylesheet",
+        href: appCss,
+      },
     ],
   }),
   shellComponent: RootShell,
@@ -100,7 +104,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
-function RootShell({ children }: { children: React.ReactNode }) {
+function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
@@ -119,12 +123,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <MaintenanceGate>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-        <MobileNav />
-        <Toaster />
-      </MaintenanceGate>
+      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      <Outlet />
+      <AppToaster />
     </QueryClientProvider>
   );
 }

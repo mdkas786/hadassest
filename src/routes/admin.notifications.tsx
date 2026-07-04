@@ -1,105 +1,53 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { AdminShell } from "@/components/AdminShell";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/notifications")({
   head: () => ({ meta: [{ title: "Notifications — Admin" }] }),
-  component: AdminNotifications,
+  component: AdminNotif,
 });
 
-type N = { id: string; had_id: string; title: string; body: string; notif_type: string; created_at: string };
-
-function AdminNotifications() {
-  const [rows, setRows] = useState<N[]>([]);
+function AdminNotif() {
+  const [target, setTarget] = useState("ALL");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [type, setType] = useState("info");
-  const [target, setTarget] = useState("ALL");
-  const [sending, setSending] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-
-  async function load() {
-    const { data } = await supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(100);
-    setRows((data as N[]) || []);
-  }
+  const [recent, setRecent] = useState<any[]>([]);
+  async function load() { const { data } = await supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(50); setRecent(data ?? []); }
   useEffect(() => { load(); }, []);
-
-  async function send(e: React.FormEvent) {
-    e.preventDefault();
-    setSending(true); setMsg(null);
-    const { data: { user } } = await supabase.auth.getUser();
-
-    let hadIds: string[] = [];
+  async function send() {
+    if (!title.trim() || !body.trim()) return toast.error("Title and body required");
+    let targets: string[] = [];
     if (target.trim().toUpperCase() === "ALL") {
-      hadIds = ["ALL"];
+      const { data } = await supabase.from("users").select("had_id");
+      targets = (data ?? []).map((u: any) => u.had_id);
     } else {
-      hadIds = target.split(",").map((s) => s.trim()).filter(Boolean);
+      targets = target.split(",").map((t) => t.trim()).filter(Boolean);
     }
-
-    const payload = hadIds.map((had_id) => ({
-      had_id, title, body, notif_type: type, created_by: user?.id || null,
-    }));
-    const { error } = await supabase.from("notifications").insert(payload);
-    setSending(false);
-    if (error) { setMsg("Failed: " + error.message); return; }
-    setMsg(`Sent to ${hadIds.includes("ALL") ? "all users" : hadIds.length + " user(s)"}.`);
-    setTitle(""); setBody("");
-    load();
+    const rows = targets.map((had_id) => ({ had_id, title, body, type }));
+    await supabase.from("notifications").insert(rows);
+    toast.success(`Sent to ${targets.length}`); setTitle(""); setBody(""); load();
   }
-
   return (
     <AdminShell title="Notifications">
-      <div className="grid lg:grid-cols-[1fr,1.2fr] gap-6">
-        <form onSubmit={send} className="rounded-xl border border-gold/20 bg-navy-light/40 p-5 space-y-3">
-          <h3 className="font-serif text-lg text-gold">Broadcast</h3>
-          <div>
-            <label className="text-xs text-white/70">Target (HAD IDs, comma separated, or ALL)</label>
-            <input value={target} onChange={(e) => setTarget(e.target.value)} required
-              className="w-full mt-1 rounded-md bg-navy border border-gold/20 px-3 py-2 outline-none focus:border-gold" />
+      <div className="bg-card border border-border rounded-lg p-5 space-y-3 mb-4">
+        <input value={target} onChange={(e) => setTarget(e.target.value)} placeholder="HAD IDs comma-separated or ALL" className="w-full bg-input border border-border rounded px-3 py-2 text-sm" />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="w-full bg-input border border-border rounded px-3 py-2 text-sm" />
+        <select value={type} onChange={(e) => setType(e.target.value)} className="bg-input border border-border rounded px-3 py-2 text-sm"><option>info</option><option>success</option><option>warning</option><option>error</option></select>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Message body" className="w-full bg-input border border-border rounded px-3 py-2 text-sm min-h-24" />
+        <button onClick={send} className="bg-[var(--gold)] text-[var(--primary-foreground)] px-4 py-2 rounded font-semibold text-sm">Send</button>
+      </div>
+      <h2 className="font-semibold mb-2">Recent</h2>
+      <div className="space-y-2">
+        {recent.map((n) => (
+          <div key={n.id} className="bg-card border border-border rounded p-3">
+            <div className="flex gap-2 items-center text-xs"><span className="text-[var(--gold)]">{n.had_id}</span><span className="bg-secondary px-2 py-0.5 rounded">{n.type}</span><span className="text-muted-foreground ml-auto">{new Date(n.created_at).toLocaleString()}</span></div>
+            <p className="font-semibold mt-1 text-sm">{n.title}</p>
+            <p className="text-xs text-muted-foreground">{n.body}</p>
           </div>
-          <div className="grid grid-cols-[1fr,150px] gap-3">
-            <div>
-              <label className="text-xs text-white/70">Title</label>
-              <input value={title} onChange={(e) => setTitle(e.target.value)} required
-                className="w-full mt-1 rounded-md bg-navy border border-gold/20 px-3 py-2 outline-none focus:border-gold" />
-            </div>
-            <div>
-              <label className="text-xs text-white/70">Type</label>
-              <select value={type} onChange={(e) => setType(e.target.value)}
-                className="w-full mt-1 rounded-md bg-navy border border-gold/20 px-3 py-2 outline-none focus:border-gold">
-                <option value="info">Info</option><option value="success">Success</option>
-                <option value="warning">Warning</option><option value="alert">Alert</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="text-xs text-white/70">Body</label>
-            <textarea value={body} onChange={(e) => setBody(e.target.value)} required rows={5}
-              className="w-full mt-1 rounded-md bg-navy border border-gold/20 px-3 py-2 outline-none focus:border-gold" />
-          </div>
-          {msg && <p className="text-sm text-gold">{msg}</p>}
-          <button disabled={sending} className="w-full rounded bg-gold text-navy py-2.5 font-medium disabled:opacity-60">
-            {sending ? "Sending…" : "Send"}
-          </button>
-        </form>
-
-        <div>
-          <h3 className="font-serif text-lg text-gold mb-3">Recent</h3>
-          <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
-            {rows.map((r) => (
-              <div key={r.id} className="rounded-lg border border-gold/20 bg-navy-light/30 p-4">
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="px-2 py-0.5 rounded bg-gold/15 text-gold font-mono">{r.had_id}</span>
-                  <span className="px-2 py-0.5 rounded bg-white/10 text-white/70 capitalize">{r.notif_type}</span>
-                  <span className="text-white/50 ml-auto">{new Date(r.created_at).toLocaleString()}</span>
-                </div>
-                <div className="mt-2 font-medium">{r.title}</div>
-                <p className="text-sm text-white/70 mt-1">{r.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+        ))}
       </div>
     </AdminShell>
   );

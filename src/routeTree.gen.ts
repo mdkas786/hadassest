@@ -9,30 +9,32 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SpecialOffersRouteImport } from './routes/special-offers'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ReferralRouteImport } from './routes/referral'
 import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as PlanRouteImport } from './routes/plan'
 import { Route as PayRouteImport } from './routes/pay'
-import { Route as NotificationsRouteImport } from './routes/notifications'
-import { Route as MarketsRouteImport } from './routes/markets'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IncomeRouteImport } from './routes/income'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
-import { Route as MarketsCoinIdRouteImport } from './routes/markets.$coinId'
 import { Route as AdminWalletsRouteImport } from './routes/admin.wallets'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTradingRouteImport } from './routes/admin.trading'
+import { Route as AdminSpecialOffersRouteImport } from './routes/admin.special-offers'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
-import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
+import { Route as AdminPaymentVerificationRouteImport } from './routes/admin.payment-verification'
 import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminInvestmentsRouteImport } from './routes/admin.investments'
 import { Route as AdminIncomeRouteImport } from './routes/admin.income'
-import { Route as AdminAiRouteImport } from './routes/admin.ai'
 
+const SpecialOffersRoute = SpecialOffersRouteImport.update({
+  id: '/special-offers',
+  path: '/special-offers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -48,24 +50,9 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PlanRoute = PlanRouteImport.update({
-  id: '/plan',
-  path: '/plan',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PayRoute = PayRouteImport.update({
   id: '/pay',
   path: '/pay',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NotificationsRoute = NotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MarketsRoute = MarketsRouteImport.update({
-  id: '/markets',
-  path: '/markets',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -93,11 +80,6 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MarketsCoinIdRoute = MarketsCoinIdRouteImport.update({
-  id: '/$coinId',
-  path: '/$coinId',
-  getParentRoute: () => MarketsRoute,
-} as any)
 const AdminWalletsRoute = AdminWalletsRouteImport.update({
   id: '/admin/wallets',
   path: '/admin/wallets',
@@ -113,16 +95,22 @@ const AdminTradingRoute = AdminTradingRouteImport.update({
   path: '/admin/trading',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminSpecialOffersRoute = AdminSpecialOffersRouteImport.update({
+  id: '/admin/special-offers',
+  path: '/admin/special-offers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/admin/settings',
   path: '/admin/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
-  id: '/admin/payments',
-  path: '/admin/payments',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const AdminPaymentVerificationRoute =
+  AdminPaymentVerificationRouteImport.update({
+    id: '/admin/payment-verification',
+    path: '/admin/payment-verification',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
   id: '/admin/notifications',
   path: '/admin/notifications',
@@ -143,35 +131,27 @@ const AdminIncomeRoute = AdminIncomeRouteImport.update({
   path: '/admin/income',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminAiRoute = AdminAiRouteImport.update({
-  id: '/admin/ai',
-  path: '/admin/ai',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/income': typeof IncomeRoute
   '/login': typeof LoginRoute
-  '/markets': typeof MarketsRouteWithChildren
-  '/notifications': typeof NotificationsRoute
   '/pay': typeof PayRoute
-  '/plan': typeof PlanRoute
   '/profile': typeof ProfileRoute
   '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
-  '/admin/ai': typeof AdminAiRoute
+  '/special-offers': typeof SpecialOffersRoute
   '/admin/income': typeof AdminIncomeRoute
   '/admin/investments': typeof AdminInvestmentsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/notifications': typeof AdminNotificationsRoute
-  '/admin/payments': typeof AdminPaymentsRoute
+  '/admin/payment-verification': typeof AdminPaymentVerificationRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/special-offers': typeof AdminSpecialOffersRoute
   '/admin/trading': typeof AdminTradingRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/wallets': typeof AdminWalletsRoute
-  '/markets/$coinId': typeof MarketsCoinIdRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
@@ -179,24 +159,21 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/income': typeof IncomeRoute
   '/login': typeof LoginRoute
-  '/markets': typeof MarketsRouteWithChildren
-  '/notifications': typeof NotificationsRoute
   '/pay': typeof PayRoute
-  '/plan': typeof PlanRoute
   '/profile': typeof ProfileRoute
   '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
-  '/admin/ai': typeof AdminAiRoute
+  '/special-offers': typeof SpecialOffersRoute
   '/admin/income': typeof AdminIncomeRoute
   '/admin/investments': typeof AdminInvestmentsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/notifications': typeof AdminNotificationsRoute
-  '/admin/payments': typeof AdminPaymentsRoute
+  '/admin/payment-verification': typeof AdminPaymentVerificationRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/special-offers': typeof AdminSpecialOffersRoute
   '/admin/trading': typeof AdminTradingRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/wallets': typeof AdminWalletsRoute
-  '/markets/$coinId': typeof MarketsCoinIdRoute
   '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
@@ -205,24 +182,21 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/income': typeof IncomeRoute
   '/login': typeof LoginRoute
-  '/markets': typeof MarketsRouteWithChildren
-  '/notifications': typeof NotificationsRoute
   '/pay': typeof PayRoute
-  '/plan': typeof PlanRoute
   '/profile': typeof ProfileRoute
   '/referral': typeof ReferralRoute
   '/register': typeof RegisterRoute
-  '/admin/ai': typeof AdminAiRoute
+  '/special-offers': typeof SpecialOffersRoute
   '/admin/income': typeof AdminIncomeRoute
   '/admin/investments': typeof AdminInvestmentsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/notifications': typeof AdminNotificationsRoute
-  '/admin/payments': typeof AdminPaymentsRoute
+  '/admin/payment-verification': typeof AdminPaymentVerificationRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/special-offers': typeof AdminSpecialOffersRoute
   '/admin/trading': typeof AdminTradingRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/wallets': typeof AdminWalletsRoute
-  '/markets/$coinId': typeof MarketsCoinIdRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
@@ -232,24 +206,21 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/income'
     | '/login'
-    | '/markets'
-    | '/notifications'
     | '/pay'
-    | '/plan'
     | '/profile'
     | '/referral'
     | '/register'
-    | '/admin/ai'
+    | '/special-offers'
     | '/admin/income'
     | '/admin/investments'
     | '/admin/login'
     | '/admin/notifications'
-    | '/admin/payments'
+    | '/admin/payment-verification'
     | '/admin/settings'
+    | '/admin/special-offers'
     | '/admin/trading'
     | '/admin/users'
     | '/admin/wallets'
-    | '/markets/$coinId'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -257,24 +228,21 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/income'
     | '/login'
-    | '/markets'
-    | '/notifications'
     | '/pay'
-    | '/plan'
     | '/profile'
     | '/referral'
     | '/register'
-    | '/admin/ai'
+    | '/special-offers'
     | '/admin/income'
     | '/admin/investments'
     | '/admin/login'
     | '/admin/notifications'
-    | '/admin/payments'
+    | '/admin/payment-verification'
     | '/admin/settings'
+    | '/admin/special-offers'
     | '/admin/trading'
     | '/admin/users'
     | '/admin/wallets'
-    | '/markets/$coinId'
     | '/admin'
   id:
     | '__root__'
@@ -282,24 +250,21 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/income'
     | '/login'
-    | '/markets'
-    | '/notifications'
     | '/pay'
-    | '/plan'
     | '/profile'
     | '/referral'
     | '/register'
-    | '/admin/ai'
+    | '/special-offers'
     | '/admin/income'
     | '/admin/investments'
     | '/admin/login'
     | '/admin/notifications'
-    | '/admin/payments'
+    | '/admin/payment-verification'
     | '/admin/settings'
+    | '/admin/special-offers'
     | '/admin/trading'
     | '/admin/users'
     | '/admin/wallets'
-    | '/markets/$coinId'
     | '/admin/'
   fileRoutesById: FileRoutesById
 }
@@ -308,20 +273,18 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   IncomeRoute: typeof IncomeRoute
   LoginRoute: typeof LoginRoute
-  MarketsRoute: typeof MarketsRouteWithChildren
-  NotificationsRoute: typeof NotificationsRoute
   PayRoute: typeof PayRoute
-  PlanRoute: typeof PlanRoute
   ProfileRoute: typeof ProfileRoute
   ReferralRoute: typeof ReferralRoute
   RegisterRoute: typeof RegisterRoute
-  AdminAiRoute: typeof AdminAiRoute
+  SpecialOffersRoute: typeof SpecialOffersRoute
   AdminIncomeRoute: typeof AdminIncomeRoute
   AdminInvestmentsRoute: typeof AdminInvestmentsRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminNotificationsRoute: typeof AdminNotificationsRoute
-  AdminPaymentsRoute: typeof AdminPaymentsRoute
+  AdminPaymentVerificationRoute: typeof AdminPaymentVerificationRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminSpecialOffersRoute: typeof AdminSpecialOffersRoute
   AdminTradingRoute: typeof AdminTradingRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminWalletsRoute: typeof AdminWalletsRoute
@@ -330,6 +293,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/special-offers': {
+      id: '/special-offers'
+      path: '/special-offers'
+      fullPath: '/special-offers'
+      preLoaderRoute: typeof SpecialOffersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -351,32 +321,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/plan': {
-      id: '/plan'
-      path: '/plan'
-      fullPath: '/plan'
-      preLoaderRoute: typeof PlanRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/pay': {
       id: '/pay'
       path: '/pay'
       fullPath: '/pay'
       preLoaderRoute: typeof PayRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/notifications': {
-      id: '/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof NotificationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/markets': {
-      id: '/markets'
-      path: '/markets'
-      fullPath: '/markets'
-      preLoaderRoute: typeof MarketsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -414,13 +363,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/markets/$coinId': {
-      id: '/markets/$coinId'
-      path: '/$coinId'
-      fullPath: '/markets/$coinId'
-      preLoaderRoute: typeof MarketsCoinIdRouteImport
-      parentRoute: typeof MarketsRoute
-    }
     '/admin/wallets': {
       id: '/admin/wallets'
       path: '/admin/wallets'
@@ -442,6 +384,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTradingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/special-offers': {
+      id: '/admin/special-offers'
+      path: '/admin/special-offers'
+      fullPath: '/admin/special-offers'
+      preLoaderRoute: typeof AdminSpecialOffersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/settings': {
       id: '/admin/settings'
       path: '/admin/settings'
@@ -449,11 +398,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/payments': {
-      id: '/admin/payments'
-      path: '/admin/payments'
-      fullPath: '/admin/payments'
-      preLoaderRoute: typeof AdminPaymentsRouteImport
+    '/admin/payment-verification': {
+      id: '/admin/payment-verification'
+      path: '/admin/payment-verification'
+      fullPath: '/admin/payment-verification'
+      preLoaderRoute: typeof AdminPaymentVerificationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/notifications': {
@@ -484,46 +433,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIncomeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/ai': {
-      id: '/admin/ai'
-      path: '/admin/ai'
-      fullPath: '/admin/ai'
-      preLoaderRoute: typeof AdminAiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
-
-interface MarketsRouteChildren {
-  MarketsCoinIdRoute: typeof MarketsCoinIdRoute
-}
-
-const MarketsRouteChildren: MarketsRouteChildren = {
-  MarketsCoinIdRoute: MarketsCoinIdRoute,
-}
-
-const MarketsRouteWithChildren =
-  MarketsRoute._addFileChildren(MarketsRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   IncomeRoute: IncomeRoute,
   LoginRoute: LoginRoute,
-  MarketsRoute: MarketsRouteWithChildren,
-  NotificationsRoute: NotificationsRoute,
   PayRoute: PayRoute,
-  PlanRoute: PlanRoute,
   ProfileRoute: ProfileRoute,
   ReferralRoute: ReferralRoute,
   RegisterRoute: RegisterRoute,
-  AdminAiRoute: AdminAiRoute,
+  SpecialOffersRoute: SpecialOffersRoute,
   AdminIncomeRoute: AdminIncomeRoute,
   AdminInvestmentsRoute: AdminInvestmentsRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminNotificationsRoute: AdminNotificationsRoute,
-  AdminPaymentsRoute: AdminPaymentsRoute,
+  AdminPaymentVerificationRoute: AdminPaymentVerificationRoute,
   AdminSettingsRoute: AdminSettingsRoute,
+  AdminSpecialOffersRoute: AdminSpecialOffersRoute,
   AdminTradingRoute: AdminTradingRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminWalletsRoute: AdminWalletsRoute,

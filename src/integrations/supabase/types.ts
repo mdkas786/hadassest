@@ -166,12 +166,12 @@ export type Database = {
           notes: string | null
           offer_id: string | null
           partner_income_total: number
-          plan_name: Database["public"]["Enums"]["plan_type"]
+          plan_name: string
           plan_rate: number
           slab_id: string | null
           sponsor_income_total: number
           start_date: string
-          status: Database["public"]["Enums"]["investment_status"]
+          status: string
           total_income_received: number
           total_return: number | null
           transaction_id: string | null
@@ -191,12 +191,12 @@ export type Database = {
           notes?: string | null
           offer_id?: string | null
           partner_income_total?: number
-          plan_name?: Database["public"]["Enums"]["plan_type"]
+          plan_name?: string
           plan_rate?: number
           slab_id?: string | null
           sponsor_income_total?: number
           start_date?: string
-          status?: Database["public"]["Enums"]["investment_status"]
+          status?: string
           total_income_received?: number
           total_return?: number | null
           transaction_id?: string | null
@@ -216,12 +216,12 @@ export type Database = {
           notes?: string | null
           offer_id?: string | null
           partner_income_total?: number
-          plan_name?: Database["public"]["Enums"]["plan_type"]
+          plan_name?: string
           plan_rate?: number
           slab_id?: string | null
           sponsor_income_total?: number
           start_date?: string
-          status?: Database["public"]["Enums"]["investment_status"]
+          status?: string
           total_income_received?: number
           total_return?: number | null
           transaction_id?: string | null
@@ -531,20 +531,20 @@ export type Database = {
           base_amount: number | null
           created_at: string
           earner_had_id: string
-          earner_user_id: string
+          earner_user_id: string | null
           id: string
           income_amount: number | null
-          investment_amount: number
+          investment_amount: number | null
           investment_id: string | null
           month: string | null
           notes: string | null
           paid_at: string | null
           paid_by: string | null
           percentage: number | null
-          referred_had_id: string
-          referred_user_id: string
+          referred_had_id: string | null
+          referred_user_id: string | null
           source_had_id: string | null
-          sponsor_amount: number
+          sponsor_amount: number | null
           status: string
           transaction_id: string | null
           type: string
@@ -553,20 +553,20 @@ export type Database = {
           base_amount?: number | null
           created_at?: string
           earner_had_id: string
-          earner_user_id: string
+          earner_user_id?: string | null
           id?: string
           income_amount?: number | null
-          investment_amount?: number
+          investment_amount?: number | null
           investment_id?: string | null
           month?: string | null
           notes?: string | null
           paid_at?: string | null
           paid_by?: string | null
           percentage?: number | null
-          referred_had_id: string
-          referred_user_id: string
+          referred_had_id?: string | null
+          referred_user_id?: string | null
           source_had_id?: string | null
-          sponsor_amount?: number
+          sponsor_amount?: number | null
           status?: string
           transaction_id?: string | null
           type?: string
@@ -575,20 +575,20 @@ export type Database = {
           base_amount?: number | null
           created_at?: string
           earner_had_id?: string
-          earner_user_id?: string
+          earner_user_id?: string | null
           id?: string
           income_amount?: number | null
-          investment_amount?: number
+          investment_amount?: number | null
           investment_id?: string | null
           month?: string | null
           notes?: string | null
           paid_at?: string | null
           paid_by?: string | null
           percentage?: number | null
-          referred_had_id?: string
-          referred_user_id?: string
+          referred_had_id?: string | null
+          referred_user_id?: string | null
           source_had_id?: string | null
-          sponsor_amount?: number
+          sponsor_amount?: number | null
           status?: string
           transaction_id?: string | null
           type?: string
@@ -609,8 +609,8 @@ export type Database = {
           expected_duration_days: number
           id: string
           profit_target_percent: number
-          risk_level: Database["public"]["Enums"]["risk_level"]
-          status: Database["public"]["Enums"]["asset_status"]
+          risk_level: string
+          status: string
           symbol: string
           updated_at: string
           use_manual_price: boolean
@@ -628,8 +628,8 @@ export type Database = {
           expected_duration_days?: number
           id?: string
           profit_target_percent?: number
-          risk_level?: Database["public"]["Enums"]["risk_level"]
-          status?: Database["public"]["Enums"]["asset_status"]
+          risk_level?: string
+          status?: string
           symbol: string
           updated_at?: string
           use_manual_price?: boolean
@@ -647,8 +647,8 @@ export type Database = {
           expected_duration_days?: number
           id?: string
           profit_target_percent?: number
-          risk_level?: Database["public"]["Enums"]["risk_level"]
-          status?: Database["public"]["Enums"]["asset_status"]
+          risk_level?: string
+          status?: string
           symbol?: string
           updated_at?: string
           use_manual_price?: boolean
@@ -672,7 +672,7 @@ export type Database = {
           slab_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           txn_ref: string | null
-          type: Database["public"]["Enums"]["transaction_type"]
+          type: string
           user_id: string
           utr_number: string | null
           verified_at: string | null
@@ -694,7 +694,7 @@ export type Database = {
           slab_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           txn_ref?: string | null
-          type?: Database["public"]["Enums"]["transaction_type"]
+          type?: string
           user_id: string
           utr_number?: string | null
           verified_at?: string | null
@@ -716,7 +716,7 @@ export type Database = {
           slab_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           txn_ref?: string | null
-          type?: Database["public"]["Enums"]["transaction_type"]
+          type?: string
           user_id?: string
           utr_number?: string | null
           verified_at?: string | null
@@ -895,8 +895,8 @@ export type Database = {
           expected_duration_days: number | null
           id: string | null
           profit_target_percent: number | null
-          risk_level: Database["public"]["Enums"]["risk_level"] | null
-          status: Database["public"]["Enums"]["asset_status"] | null
+          risk_level: string | null
+          status: string | null
           symbol: string | null
           updated_at: string | null
           use_manual_price: boolean | null
@@ -913,8 +913,8 @@ export type Database = {
           expected_duration_days?: number | null
           id?: string | null
           profit_target_percent?: number | null
-          risk_level?: Database["public"]["Enums"]["risk_level"] | null
-          status?: Database["public"]["Enums"]["asset_status"] | null
+          risk_level?: string | null
+          status?: string | null
           symbol?: string | null
           updated_at?: string | null
           use_manual_price?: boolean | null
@@ -931,8 +931,8 @@ export type Database = {
           expected_duration_days?: number | null
           id?: string | null
           profit_target_percent?: number | null
-          risk_level?: Database["public"]["Enums"]["risk_level"] | null
-          status?: Database["public"]["Enums"]["asset_status"] | null
+          risk_level?: string | null
+          status?: string | null
           symbol?: string | null
           updated_at?: string | null
           use_manual_price?: boolean | null
@@ -970,8 +970,8 @@ export type Database = {
           expected_duration_days: number
           id: string
           profit_target_percent: number
-          risk_level: Database["public"]["Enums"]["risk_level"]
-          status: Database["public"]["Enums"]["asset_status"]
+          risk_level: string
+          status: string
           symbol: string
           updated_at: string
           use_manual_price: boolean

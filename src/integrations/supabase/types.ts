@@ -176,7 +176,7 @@ export type Database = {
           total_return: number | null
           transaction_id: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           amount_invested?: number
@@ -201,7 +201,7 @@ export type Database = {
           total_return?: number | null
           transaction_id?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           amount_invested?: number
@@ -226,7 +226,7 @@ export type Database = {
           total_return?: number | null
           transaction_id?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -601,6 +601,7 @@ export type Database = {
           allocation_percent: number
           asset_category: string
           asset_name: string
+          asset_type: string | null
           coincap_id: string | null
           created_at: string
           current_price: number
@@ -612,6 +613,7 @@ export type Database = {
           risk_level: string
           status: string
           symbol: string
+          target_percent: number | null
           updated_at: string
           use_manual_price: boolean
         }
@@ -620,6 +622,7 @@ export type Database = {
           allocation_percent?: number
           asset_category?: string
           asset_name: string
+          asset_type?: string | null
           coincap_id?: string | null
           created_at?: string
           current_price?: number
@@ -631,6 +634,7 @@ export type Database = {
           risk_level?: string
           status?: string
           symbol: string
+          target_percent?: number | null
           updated_at?: string
           use_manual_price?: boolean
         }
@@ -639,6 +643,7 @@ export type Database = {
           allocation_percent?: number
           asset_category?: string
           asset_name?: string
+          asset_type?: string | null
           coincap_id?: string | null
           created_at?: string
           current_price?: number
@@ -650,6 +655,7 @@ export type Database = {
           risk_level?: string
           status?: string
           symbol?: string
+          target_percent?: number | null
           updated_at?: string
           use_manual_price?: boolean
         }
@@ -673,7 +679,7 @@ export type Database = {
           status: Database["public"]["Enums"]["transaction_status"]
           txn_ref: string | null
           type: string
-          user_id: string
+          user_id: string | null
           utr_number: string | null
           verified_at: string | null
           verified_by: string | null
@@ -695,7 +701,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["transaction_status"]
           txn_ref?: string | null
           type?: string
-          user_id: string
+          user_id?: string | null
           utr_number?: string | null
           verified_at?: string | null
           verified_by?: string | null
@@ -717,7 +723,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["transaction_status"]
           txn_ref?: string | null
           type?: string
-          user_id?: string
+          user_id?: string | null
           utr_number?: string | null
           verified_at?: string | null
           verified_by?: string | null
@@ -962,6 +968,7 @@ export type Database = {
           allocation_percent: number
           asset_category: string
           asset_name: string
+          asset_type: string | null
           coincap_id: string | null
           created_at: string
           current_price: number
@@ -973,6 +980,7 @@ export type Database = {
           risk_level: string
           status: string
           symbol: string
+          target_percent: number | null
           updated_at: string
           use_manual_price: boolean
         }[]

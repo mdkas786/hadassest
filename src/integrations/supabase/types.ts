@@ -68,6 +68,48 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          data_summary: Json | null
+          id: string
+          performed_by: string | null
+          target_had_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          data_summary?: Json | null
+          id?: string
+          performed_by?: string | null
+          target_had_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          data_summary?: Json | null
+          id?: string
+          performed_by?: string | null
+          target_had_id?: string | null
+        }
+        Relationships: []
+      }
+      config: {
+        Row: {
+          key: string
+          value: string | null
+        }
+        Insert: {
+          key: string
+          value?: string | null
+        }
+        Update: {
+          key?: string
+          value?: string | null
+        }
+        Relationships: []
+      }
       daily_reports: {
         Row: {
           created_at: string
@@ -115,52 +157,76 @@ export type Database = {
           amount_invested: number
           amount_received: number
           created_at: string
+          duration_months: number | null
           expected_2x: number | null
           had_id: string
           id: string
+          is_special: boolean
+          monthly_roi: number | null
           notes: string | null
+          offer_id: string | null
           partner_income_total: number
-          plan_name: Database["public"]["Enums"]["plan_type"]
+          plan_name: string
           plan_rate: number
+          slab_id: string | null
           sponsor_income_total: number
           start_date: string
-          status: Database["public"]["Enums"]["investment_status"]
+          status: string
+          total_income_received: number
+          total_return: number | null
+          transaction_id: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           amount_invested?: number
           amount_received?: number
           created_at?: string
+          duration_months?: number | null
           expected_2x?: number | null
           had_id: string
           id?: string
+          is_special?: boolean
+          monthly_roi?: number | null
           notes?: string | null
+          offer_id?: string | null
           partner_income_total?: number
-          plan_name?: Database["public"]["Enums"]["plan_type"]
+          plan_name?: string
           plan_rate?: number
+          slab_id?: string | null
           sponsor_income_total?: number
           start_date?: string
-          status?: Database["public"]["Enums"]["investment_status"]
+          status?: string
+          total_income_received?: number
+          total_return?: number | null
+          transaction_id?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           amount_invested?: number
           amount_received?: number
           created_at?: string
+          duration_months?: number | null
           expected_2x?: number | null
           had_id?: string
           id?: string
+          is_special?: boolean
+          monthly_roi?: number | null
           notes?: string | null
+          offer_id?: string | null
           partner_income_total?: number
-          plan_name?: Database["public"]["Enums"]["plan_type"]
+          plan_name?: string
           plan_rate?: number
+          slab_id?: string | null
           sponsor_income_total?: number
           start_date?: string
-          status?: Database["public"]["Enums"]["investment_status"]
+          status?: string
+          total_income_received?: number
+          total_return?: number | null
+          transaction_id?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -192,9 +258,11 @@ export type Database = {
           created_by: string | null
           had_id: string
           id: string
+          is_read: boolean
           notif_type: string
           read_at: string | null
           title: string
+          type: string
         }
         Insert: {
           body: string
@@ -202,9 +270,11 @@ export type Database = {
           created_by?: string | null
           had_id: string
           id?: string
+          is_read?: boolean
           notif_type?: string
           read_at?: string | null
           title: string
+          type?: string
         }
         Update: {
           body?: string
@@ -212,9 +282,11 @@ export type Database = {
           created_by?: string | null
           had_id?: string
           id?: string
+          is_read?: boolean
           notif_type?: string
           read_at?: string | null
           title?: string
+          type?: string
         }
         Relationships: []
       }
@@ -362,51 +434,164 @@ export type Database = {
         }
         Relationships: []
       }
-      sponsor_income: {
+      special_offer_slabs: {
         Row: {
+          benefits: string | null
           created_at: string
-          earner_had_id: string
-          earner_user_id: string
+          duration_months: number
           id: string
           investment_amount: number
-          notes: string | null
-          paid_at: string | null
-          paid_by: string | null
-          referred_had_id: string
-          referred_user_id: string
-          sponsor_amount: number
+          monthly_profit: number
+          offer_id: string
+          slab_label: string | null
+          sort_order: number
+          total_return: number
+        }
+        Insert: {
+          benefits?: string | null
+          created_at?: string
+          duration_months: number
+          id?: string
+          investment_amount: number
+          monthly_profit: number
+          offer_id: string
+          slab_label?: string | null
+          sort_order?: number
+          total_return: number
+        }
+        Update: {
+          benefits?: string | null
+          created_at?: string
+          duration_months?: number
+          id?: string
+          investment_amount?: number
+          monthly_profit?: number
+          offer_id?: string
+          slab_label?: string | null
+          sort_order?: number
+          total_return?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "special_offer_slabs_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "special_offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      special_offers: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          image: string | null
+          name: string | null
+          published: boolean
+          start_date: string | null
           status: string
-          transaction_id: string | null
+          title: string
+          updated_at: string
         }
         Insert: {
           created_at?: string
-          earner_had_id: string
-          earner_user_id: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
           id?: string
-          investment_amount?: number
-          notes?: string | null
-          paid_at?: string | null
-          paid_by?: string | null
-          referred_had_id: string
-          referred_user_id: string
-          sponsor_amount?: number
+          image?: string | null
+          name?: string | null
+          published?: boolean
+          start_date?: string | null
           status?: string
-          transaction_id?: string | null
+          title: string
+          updated_at?: string
         }
         Update: {
           created_at?: string
-          earner_had_id?: string
-          earner_user_id?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
           id?: string
-          investment_amount?: number
+          image?: string | null
+          name?: string | null
+          published?: boolean
+          start_date?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sponsor_income: {
+        Row: {
+          base_amount: number | null
+          created_at: string
+          earner_had_id: string
+          earner_user_id: string | null
+          id: string
+          income_amount: number | null
+          investment_amount: number | null
+          investment_id: string | null
+          month: string | null
+          notes: string | null
+          paid_at: string | null
+          paid_by: string | null
+          percentage: number | null
+          referred_had_id: string | null
+          referred_user_id: string | null
+          source_had_id: string | null
+          sponsor_amount: number | null
+          status: string
+          transaction_id: string | null
+          type: string
+        }
+        Insert: {
+          base_amount?: number | null
+          created_at?: string
+          earner_had_id: string
+          earner_user_id?: string | null
+          id?: string
+          income_amount?: number | null
+          investment_amount?: number | null
+          investment_id?: string | null
+          month?: string | null
           notes?: string | null
           paid_at?: string | null
           paid_by?: string | null
-          referred_had_id?: string
-          referred_user_id?: string
-          sponsor_amount?: number
+          percentage?: number | null
+          referred_had_id?: string | null
+          referred_user_id?: string | null
+          source_had_id?: string | null
+          sponsor_amount?: number | null
           status?: string
           transaction_id?: string | null
+          type?: string
+        }
+        Update: {
+          base_amount?: number | null
+          created_at?: string
+          earner_had_id?: string
+          earner_user_id?: string | null
+          id?: string
+          income_amount?: number | null
+          investment_amount?: number | null
+          investment_id?: string | null
+          month?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          percentage?: number | null
+          referred_had_id?: string | null
+          referred_user_id?: string | null
+          source_had_id?: string | null
+          sponsor_amount?: number | null
+          status?: string
+          transaction_id?: string | null
+          type?: string
         }
         Relationships: []
       }
@@ -416,6 +601,7 @@ export type Database = {
           allocation_percent: number
           asset_category: string
           asset_name: string
+          asset_type: string | null
           coincap_id: string | null
           created_at: string
           current_price: number
@@ -424,9 +610,10 @@ export type Database = {
           expected_duration_days: number
           id: string
           profit_target_percent: number
-          risk_level: Database["public"]["Enums"]["risk_level"]
-          status: Database["public"]["Enums"]["asset_status"]
+          risk_level: string
+          status: string
           symbol: string
+          target_percent: number | null
           updated_at: string
           use_manual_price: boolean
         }
@@ -435,6 +622,7 @@ export type Database = {
           allocation_percent?: number
           asset_category?: string
           asset_name: string
+          asset_type?: string | null
           coincap_id?: string | null
           created_at?: string
           current_price?: number
@@ -443,9 +631,10 @@ export type Database = {
           expected_duration_days?: number
           id?: string
           profit_target_percent?: number
-          risk_level?: Database["public"]["Enums"]["risk_level"]
-          status?: Database["public"]["Enums"]["asset_status"]
+          risk_level?: string
+          status?: string
           symbol: string
+          target_percent?: number | null
           updated_at?: string
           use_manual_price?: boolean
         }
@@ -454,6 +643,7 @@ export type Database = {
           allocation_percent?: number
           asset_category?: string
           asset_name?: string
+          asset_type?: string | null
           coincap_id?: string | null
           created_at?: string
           current_price?: number
@@ -462,9 +652,10 @@ export type Database = {
           expected_duration_days?: number
           id?: string
           profit_target_percent?: number
-          risk_level?: Database["public"]["Enums"]["risk_level"]
-          status?: Database["public"]["Enums"]["asset_status"]
+          risk_level?: string
+          status?: string
           symbol?: string
+          target_percent?: number | null
           updated_at?: string
           use_manual_price?: boolean
         }
@@ -478,15 +669,17 @@ export type Database = {
           id: string
           method: string | null
           notes: string | null
+          offer_id: string | null
           payment_method: string | null
           plan_name: string | null
           rejection_reason: string | null
           screenshot_url: string | null
           slab_amount: number | null
+          slab_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           txn_ref: string | null
-          type: Database["public"]["Enums"]["transaction_type"]
-          user_id: string
+          type: string
+          user_id: string | null
           utr_number: string | null
           verified_at: string | null
           verified_by: string | null
@@ -498,15 +691,17 @@ export type Database = {
           id?: string
           method?: string | null
           notes?: string | null
+          offer_id?: string | null
           payment_method?: string | null
           plan_name?: string | null
           rejection_reason?: string | null
           screenshot_url?: string | null
           slab_amount?: number | null
+          slab_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           txn_ref?: string | null
-          type?: Database["public"]["Enums"]["transaction_type"]
-          user_id: string
+          type?: string
+          user_id?: string | null
           utr_number?: string | null
           verified_at?: string | null
           verified_by?: string | null
@@ -518,15 +713,17 @@ export type Database = {
           id?: string
           method?: string | null
           notes?: string | null
+          offer_id?: string | null
           payment_method?: string | null
           plan_name?: string | null
           rejection_reason?: string | null
           screenshot_url?: string | null
           slab_amount?: number | null
+          slab_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           txn_ref?: string | null
-          type?: Database["public"]["Enums"]["transaction_type"]
-          user_id?: string
+          type?: string
+          user_id?: string | null
           utr_number?: string | null
           verified_at?: string | null
           verified_by?: string | null
@@ -554,6 +751,141 @@ export type Database = {
         }
         Relationships: []
       }
+      user_special_investments: {
+        Row: {
+          amount: number
+          created_at: string
+          duration_months: number
+          end_date: string | null
+          had_id: string
+          id: string
+          monthly_profit: number
+          offer_id: string
+          slab_id: string
+          start_date: string | null
+          status: string
+          total_return: number
+          transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          duration_months?: number
+          end_date?: string | null
+          had_id: string
+          id?: string
+          monthly_profit?: number
+          offer_id: string
+          slab_id: string
+          start_date?: string | null
+          status?: string
+          total_return?: number
+          transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          duration_months?: number
+          end_date?: string | null
+          had_id?: string
+          id?: string
+          monthly_profit?: number
+          offer_id?: string
+          slab_id?: string
+          start_date?: string | null
+          status?: string
+          total_return?: number
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_special_investments_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "special_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_special_investments_slab_id_fkey"
+            columns: ["slab_id"]
+            isOneToOne: false
+            referencedRelation: "special_offer_slabs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          bep20_wallet: string | null
+          city: string | null
+          created_at: string
+          email: string | null
+          had_id: string
+          id: string
+          mobile: string | null
+          name: string
+          referred_by: string | null
+          status: string
+          trc20_wallet: string | null
+          upi_id: string | null
+        }
+        Insert: {
+          bep20_wallet?: string | null
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          had_id: string
+          id?: string
+          mobile?: string | null
+          name: string
+          referred_by?: string | null
+          status?: string
+          trc20_wallet?: string | null
+          upi_id?: string | null
+        }
+        Update: {
+          bep20_wallet?: string | null
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          had_id?: string
+          id?: string
+          mobile?: string | null
+          name?: string
+          referred_by?: string | null
+          status?: string
+          trc20_wallet?: string | null
+          upi_id?: string | null
+        }
+        Relationships: []
+      }
+      wallets: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string | null
+          type: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          type: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       trading_assets_public: {
@@ -569,8 +901,8 @@ export type Database = {
           expected_duration_days: number | null
           id: string | null
           profit_target_percent: number | null
-          risk_level: Database["public"]["Enums"]["risk_level"] | null
-          status: Database["public"]["Enums"]["asset_status"] | null
+          risk_level: string | null
+          status: string | null
           symbol: string | null
           updated_at: string | null
           use_manual_price: boolean | null
@@ -587,8 +919,8 @@ export type Database = {
           expected_duration_days?: number | null
           id?: string | null
           profit_target_percent?: number | null
-          risk_level?: Database["public"]["Enums"]["risk_level"] | null
-          status?: Database["public"]["Enums"]["asset_status"] | null
+          risk_level?: string | null
+          status?: string | null
           symbol?: string | null
           updated_at?: string | null
           use_manual_price?: boolean | null
@@ -605,8 +937,8 @@ export type Database = {
           expected_duration_days?: number | null
           id?: string | null
           profit_target_percent?: number | null
-          risk_level?: Database["public"]["Enums"]["risk_level"] | null
-          status?: Database["public"]["Enums"]["asset_status"] | null
+          risk_level?: string | null
+          status?: string | null
           symbol?: string | null
           updated_at?: string | null
           use_manual_price?: boolean | null
@@ -615,7 +947,12 @@ export type Database = {
       }
     }
     Functions: {
-      admin_delete_user: { Args: { _user_id: string }; Returns: undefined }
+      admin_delete_user:
+        | { Args: { _user_id: string }; Returns: undefined }
+        | {
+            Args: { admin_id: string; target_had_id: string }
+            Returns: undefined
+          }
       check_had_id: {
         Args: { p_had_id: string }
         Returns: {
@@ -623,6 +960,7 @@ export type Database = {
         }[]
       }
       generate_had_id: { Args: never; Returns: string }
+      get_team_count: { Args: { root_had_id: string }; Returns: number }
       get_trading_assets_admin: {
         Args: never
         Returns: {
@@ -630,6 +968,7 @@ export type Database = {
           allocation_percent: number
           asset_category: string
           asset_name: string
+          asset_type: string | null
           coincap_id: string | null
           created_at: string
           current_price: number
@@ -638,9 +977,10 @@ export type Database = {
           expected_duration_days: number
           id: string
           profit_target_percent: number
-          risk_level: Database["public"]["Enums"]["risk_level"]
-          status: Database["public"]["Enums"]["asset_status"]
+          risk_level: string
+          status: string
           symbol: string
+          target_percent: number | null
           updated_at: string
           use_manual_price: boolean
         }[]

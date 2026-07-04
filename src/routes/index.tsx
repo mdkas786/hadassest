@@ -1,132 +1,152 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Splash } from "@/components/Splash";
-import { SiteHeader } from "@/components/SiteHeader";
+import { Logo } from "@/components/Logo";
 import logo from "@/assets/had-logo.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "H.A.D. Asset Management — Paison ko kaam par lagao" },
-      { name: "description", content: "Invest with H.A.D. Asset Management. Three transparent plans up to 7% monthly. Live company portfolio, secure payouts, and full visibility on your money." },
+      { title: "H.A.D. Asset Management — Multi-Asset Investment Platform" },
+      { name: "description", content: "Transparent multi-asset portfolio across crypto, NFTs and real estate. Target 2X on every plan with monthly ROI." },
       { property: "og:title", content: "H.A.D. Asset Management" },
-      { property: "og:description", content: "Paison ko sirf bachao mat, unhein kaam par lagao." },
+      { property: "og:description", content: "Paison ko sirf bachao mat, unhein kaam par lagao. 2X target on every plan." },
     ],
   }),
   component: Landing,
 });
 
-const plans = [
-  { name: "Starter", rate: "5%", slab: "Up to ₹5,00,000", color: "from-slate-700 to-slate-900", perks: ["Monthly return", "2X target tracking", "Free crypto/UPI payouts"] },
-  { name: "Growth", rate: "6%", slab: "₹5L – ₹10L", color: "from-blue-900 to-navy", perks: ["Higher monthly return", "Priority verification", "Dedicated support"] },
-  { name: "Fortune", rate: "7%", slab: "Above ₹10L", color: "from-amber-700 to-yellow-900", perks: ["Maximum returns", "AI portfolio insights", "Concierge withdrawals"] },
-];
-
 function Landing() {
   return (
-    <>
-      <Splash />
-      <div className="min-h-screen bg-navy text-white">
-        <SiteHeader />
-
-        {/* Hero */}
-        <section className="relative overflow-hidden">
-          <div className="absolute inset-0 [background:radial-gradient(circle_at_20%_10%,rgba(201,168,76,.18),transparent_50%),radial-gradient(circle_at_80%_60%,rgba(201,168,76,.12),transparent_50%)]" />
-          <div className="relative mx-auto grid max-w-6xl grid-cols-1 gap-12 px-6 py-20 md:grid-cols-2 md:items-center">
-            <div>
-              <p className="mb-4 inline-block rounded-full border border-gold/40 px-3 py-1 text-xs tracking-[0.3em] text-gold uppercase">Est. 2026</p>
-              <h1 className="font-serif text-5xl md:text-6xl leading-[1.05] text-white">
-                Paison ko sirf <span className="italic text-gold">bachao</span> mat,
-                <br />unhein <span className="text-gold">kaam</span> par lagao.
-              </h1>
-              <p className="mt-6 max-w-lg text-white/70 text-lg">
-                H.A.D. Asset Management runs a transparent multi-asset portfolio across crypto, NFTs and real estate. You see what we hold, in real time.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Link to="/register" className="rounded-md bg-gold px-6 py-3 text-navy font-medium hover:brightness-110">Open Account</Link>
-                <a href="#plans" className="rounded-md border border-gold/40 px-6 py-3 text-white hover:bg-gold/10">View Plans</a>
-              </div>
-              <div className="mt-10 flex items-center gap-6 text-sm text-white/60">
-                <div><span className="text-gold text-xl font-semibold">2X</span> target on every plan</div>
-                <div className="h-6 w-px bg-gold/30" />
-                <div><span className="text-gold text-xl font-semibold">Live</span> portfolio feed</div>
-              </div>
-            </div>
-            <div className="relative">
-              <div className="absolute -inset-6 rounded-2xl bg-gradient-to-br from-gold/20 to-transparent blur-2xl" />
-              <img src={logo} alt="H.A.D. shield" className="relative w-full rounded-2xl border border-gold/30 shadow-2xl shadow-black/60" />
-            </div>
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="bg-[var(--gold)]/15 text-center text-xs py-2 text-[var(--gold-light)]">
+        ⚡ Live payout of June Month ROI on 10th of this month. Keep tracking.
+      </div>
+      <header className="border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
+          <Logo />
+          <nav className="hidden md:flex gap-5 text-sm text-muted-foreground ml-6">
+            <a href="#plans" className="hover:text-foreground">SLABS & PLANS</a>
+            <a href="#how" className="hover:text-foreground">HOW IT WORKS</a>
+            <a href="#referral" className="hover:text-foreground">SPONSOR INCOME</a>
+            <a href="#portfolio" className="hover:text-foreground">LIVE PORTFOLIO</a>
+          </nav>
+          <div className="ml-auto flex items-center gap-3">
+            <Link to="/login" className="text-sm text-muted-foreground hover:text-foreground">SIGN IN</Link>
+            <Link to="/register" className="bg-[var(--gold)] text-[var(--primary-foreground)] text-sm px-4 py-2 rounded font-semibold">GET STARTED</Link>
           </div>
-        </section>
+        </div>
+      </header>
 
-        <div className="gold-divider mx-auto max-w-6xl" />
-
-        {/* Plans */}
-        <section id="plans" className="mx-auto max-w-6xl px-6 py-20">
-          <div className="text-center mb-12">
-            <p className="text-xs tracking-[0.3em] text-gold uppercase">Investment Plans</p>
-            <h2 className="font-serif text-4xl mt-2">Three tiers. Two times the principal.</h2>
-            <p className="text-white/60 mt-3">Rate is the monthly target. 2X principal is the program target.</p>
+      {/* Hero */}
+      <section className="max-w-7xl mx-auto px-4 py-16 grid md:grid-cols-2 gap-10 items-center">
+        <div>
+          <div className="inline-block text-xs text-[var(--gold)] mb-4">⚡ LIVE MULTI-ASSET CRYPTO & REAL ESTATE BLEND</div>
+          <h1 className="text-4xl md:text-5xl font-bold leading-tight">
+            Paison ko sirf <span className="text-[var(--gold)]">bachao</span> mat,
+            <br />unhein <span className="text-[var(--gold)]">kaam</span> par lagao.
+          </h1>
+          <p className="text-muted-foreground mt-5 text-sm leading-relaxed">
+            H.A.D. Asset Management runs a completely transparent multi-asset portfolio deployed
+            dynamically across cryptocurrency indices, NFT allocations, and premium real estate
+            nodes. We track, buy, and report every transaction in real-time, delivering clean
+            structured target-yields automatically up to a secure 2X hard payout cap!
+          </p>
+          <div className="flex gap-3 mt-6">
+            <Link to="/register" className="bg-[var(--gold)] text-[var(--primary-foreground)] px-5 py-3 rounded font-semibold text-sm">OPEN ACCOUNT →</Link>
+            <a href="#plans" className="border border-border px-5 py-3 rounded text-sm">VIEW PLANS</a>
           </div>
-          <div className="grid gap-6 md:grid-cols-3">
-            {plans.map((p) => (
-              <div key={p.name} className={`rounded-xl border border-gold/20 bg-gradient-to-br ${p.color} p-8 hover:border-gold/60 transition`}>
-                <h3 className="font-serif text-2xl text-gold">{p.name}</h3>
-                <p className="mt-4 text-5xl font-serif">{p.rate}<span className="text-base text-white/60"> / month*</span></p>
-                <p className="mt-2 text-sm text-white/70">{p.slab}</p>
-                <ul className="mt-6 space-y-2 text-sm text-white/80">
-                  {p.perks.map((x) => <li key={x} className="flex gap-2"><span className="text-gold">◆</span>{x}</li>)}
+          <div className="flex gap-5 mt-6 text-xs text-muted-foreground">
+            <span>✓ 2X principal target payout rule</span>
+            <span>✓ Realtime holding asset trackers</span>
+          </div>
+        </div>
+        <div className="flex justify-center">
+          <img src={logo} alt="H.A.D. Asset Management" className="rounded-lg shadow-2xl max-w-md w-full" width={1280} height={768} />
+        </div>
+      </section>
+
+      {/* Plans */}
+      <section id="plans" className="bg-card/40 py-16">
+        <div className="max-w-7xl mx-auto px-4">
+          <p className="text-center text-xs text-[var(--gold)] tracking-widest">SELECT SLAB TIER</p>
+          <h2 className="text-center text-3xl font-bold mt-2">Three tiers. Two times the principal.</h2>
+          <p className="text-center text-muted-foreground text-sm mt-3 max-w-2xl mx-auto">
+            Our target rate represents the static monthly portfolio payout goal. Your subscription terminates as soon as you touch the strict 2X total payout target threshold.
+          </p>
+          <div className="grid md:grid-cols-3 gap-5 mt-10">
+            {[
+              { name: "STARTER", rate: "5%", min: "₹50,000", max: "₹10,00,000", color: "border-border" },
+              { name: "GROWTH", rate: "6%", min: "₹11,00,000", max: "₹30,00,000", color: "border-[var(--gold)] ring-1 ring-[var(--gold)]", recommended: true },
+              { name: "FORTUNE", rate: "7%", min: "₹31,00,000+", max: "", color: "border-border" },
+            ].map((p) => (
+              <div key={p.name} className={`bg-card border ${p.color} rounded-lg p-6 relative`}>
+                {p.recommended && <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[var(--gold)] text-[var(--primary-foreground)] text-[10px] px-2 py-1 rounded font-semibold">RECOMMENDED</span>}
+                <div className="flex justify-between items-center text-xs text-muted-foreground">
+                  <span>SLAB</span>
+                  <span className="text-[var(--gold)] text-lg font-bold">{p.rate}<span className="text-xs text-muted-foreground">/mo</span></span>
+                </div>
+                <h3 className="text-xl font-bold mt-3">{p.name}</h3>
+                <p className="text-muted-foreground text-sm mt-2">{p.min}{p.max && ` – ${p.max}`}</p>
+                <ul className="text-xs text-muted-foreground space-y-2 mt-5">
+                  <li>✓ Target monthly ROI yields</li>
+                  <li>✓ Dynamic 2X progression bar tracker</li>
+                  <li>✓ Realtime fast UPI and USDT payouts</li>
                 </ul>
-                <Link to="/register" className="mt-8 block rounded-md border border-gold/50 px-4 py-2 text-center text-sm text-gold hover:bg-gold hover:text-navy transition">Choose {p.name}</Link>
+                <Link to="/register" className="block text-center mt-6 bg-secondary hover:bg-[var(--gold)] hover:text-[var(--primary-foreground)] py-2 rounded text-sm font-semibold transition">CHOOSE {p.name}</Link>
               </div>
             ))}
           </div>
-          <p className="text-xs text-white/40 mt-4 text-center">*Target rate, not guaranteed. Actual returns track the company portfolio.</p>
-        </section>
+        </div>
+      </section>
 
-        {/* How */}
-        <section id="how" className="bg-navy-light/40 py-20 border-y border-gold/10">
-          <div className="mx-auto max-w-6xl px-6">
-            <div className="text-center mb-12">
-              <p className="text-xs tracking-[0.3em] text-gold uppercase">How it works</p>
-              <h2 className="font-serif text-4xl mt-2">From signup to 2X — clean and visible.</h2>
-            </div>
-            <div className="grid gap-8 md:grid-cols-4">
-              {[
-                ["01", "Register", "Get your HAD ID + secure password."],
-                ["02", "Pay", "UPI or crypto. Upload screenshot."],
-                ["03", "Verify", "Admin verifies, dashboard updates live."],
-                ["04", "Earn", "Returns paid monthly until 2X is hit."],
-              ].map(([n, t, d]) => (
-                <div key={n} className="rounded-lg border border-gold/15 bg-navy p-6">
-                  <div className="font-serif text-3xl text-gold">{n}</div>
-                  <h4 className="mt-3 text-lg">{t}</h4>
-                  <p className="mt-1 text-sm text-white/60">{d}</p>
-                </div>
-              ))}
-            </div>
+      {/* How */}
+      <section id="how" className="py-16">
+        <div className="max-w-7xl mx-auto px-4">
+          <p className="text-center text-xs text-[var(--gold)] tracking-widest">PROCESS FLOW</p>
+          <h2 className="text-center text-3xl font-bold mt-2">From signup to 2X — clean and visible.</h2>
+          <div className="grid md:grid-cols-2 gap-5 mt-10">
+            {[
+              { n: "01", t: "REGISTER", b: "Create an account instantly. Save your secure unique HAD Login ID and credential keys. No passwords required for initial profile login." },
+              { n: "02", t: "TRANSFER PAYOUT", b: "Send your desired funds using secure native UPI transfer QR links, or transfer BEP20/TRC20 assets directly, uploading verification receipts." },
+              { n: "03", t: "SYSTEM APPROVAL", b: "Admin verifies transaction signatures. Once approved, your plan automatically assigns, and starts accumulating real-time earnings instantly." },
+              { n: "04", t: "ROI & REWARDS", b: "Earnings calculations are paid on the 10th of every month. Your account remains active until you hit the maximum 2X limit cap." },
+            ].map((s) => (
+              <div key={s.n} className="bg-card border border-border rounded-lg p-6">
+                <div className="text-3xl font-bold text-[var(--gold)]/40">{s.n}</div>
+                <h3 className="font-semibold mt-2">{s.t}</h3>
+                <p className="text-sm text-muted-foreground mt-2">{s.b}</p>
+              </div>
+            ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Trust */}
-        <section id="trust" className="mx-auto max-w-6xl px-6 py-20 text-center">
-          <p className="text-xs tracking-[0.3em] text-gold uppercase">Why H.A.D.</p>
-          <h2 className="font-serif text-4xl mt-2">Real portfolio. Real numbers. Real time.</h2>
-          <p className="text-white/60 mt-3 max-w-2xl mx-auto">
-            Every asset the company holds is visible on your dashboard with live CoinCap pricing. No hidden books. No mystery returns.
+      {/* Referral */}
+      <section id="referral" className="bg-card/40 py-16">
+        <div className="max-w-7xl mx-auto px-4">
+          <p className="text-xs text-[var(--gold)] tracking-widest">AFFILIATION REWARDS</p>
+          <h2 className="text-3xl font-bold mt-2">Earn premium commissions while referring.</h2>
+          <p className="text-muted-foreground text-sm mt-3">
+            Our growth engine is fueled by local networks. We distribute two-way benefits down to sponsors who introduce capital to H.A.D.
           </p>
-        </section>
-
-        <footer className="border-t border-gold/15 bg-navy">
-          <div className="mx-auto max-w-6xl px-6 py-8 flex flex-wrap items-center justify-between text-sm text-white/50">
-            <p>© 2026 H.A.D. Asset Management</p>
-            <div className="flex gap-6">
-              <Link to="/login">Login</Link>
-              <Link to="/register">Register</Link>
-              <Link to="/admin/login">Admin</Link>
+          <div className="space-y-3 mt-8 max-w-3xl">
+            <div className="bg-card border border-border rounded-lg p-4">
+              <div className="text-xs text-[var(--gold)] font-semibold">SPONSOR REFERRAL (5% DIRECT)</div>
+              <p className="text-sm text-muted-foreground mt-1">Earn instantly 5% on every enrolled investment, paid by your direct invitee. E.g. invest ₹1,00,000 → you earn ₹5,000 credited on the 10th.</p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-4">
+              <div className="text-xs text-[var(--gold)] font-semibold">PARTNER LEVEL INCOME (10% ON DIRECT ROI)</div>
+              <p className="text-sm text-muted-foreground mt-1">Qualify by introducing 2 direct verified investors. Get an extra 10% bonus calculated on their monthly paid ROI. E.g. direct investor gets ₹10,000 ROI → you get ₹1,000 extra value.</p>
             </div>
           </div>
-        </footer>
-      </div>
-    </>
+        </div>
+      </section>
+
+      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
+        © 2026 H.A.D. Asset Management ·{" "}
+        <Link to="/login" className="hover:text-foreground">Login</Link> ·{" "}
+        <Link to="/register" className="hover:text-foreground">Register</Link> ·{" "}
+        <Link to="/admin/login" className="hover:text-foreground">Admin</Link>
+      </footer>
+    </div>
   );
 }

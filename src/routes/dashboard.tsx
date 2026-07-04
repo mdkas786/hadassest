@@ -1,321 +1,260 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { UserShell } from "@/components/UserShell";
 import { supabase } from "@/integrations/supabase/client";
-import { Bell } from "lucide-react";
-import { LiveTicker } from "@/components/LiveTicker";
-import {
-  CoinAsset, fmtInr, fmtPct, fmtUsd,
-  getInrRate, getTopAssets, subscribeRealTimePrice,
-} from "@/services/coinCapService";
+import { getUser } from "@/lib/session";
+import { formatINR } from "@/lib/format";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — H.A.D." }] }),
   component: Dashboard,
 });
 
-interface Profile { id: string; had_id: string; full_name: string }
-interface Investment { id: string; plan_name: string; plan_rate: number; amount_invested: number; amount_received: number; expected_2x: number | null; status: string }
-interface PendingTxn { id: string; amount: number; status: string; payment_method: string | null; plan_name: string | null; created_at: string; utr_number: string | null }
-interface ReturnRow { amount: number }
-interface SponsorIncomeRow { sponsor_amount: number }
-interface PartnerIncomeRow { total_bonus: number }
-interface CompanyAsset {
-  id: string; asset_name: string; symbol: string; coincap_id: string | null;
-  entry_price: number; current_price: number; custom_current_price: number | null;
-  use_manual_price: boolean; allocation_percent: number; risk_level: string;
-}
-
-import { useIdleTimeout } from "@/hooks/useIdleTimeout";
-
 function Dashboard() {
-  const nav = useNavigate();
-  useIdleTimeout(10, "/login");
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [invs, setInvs] = useState<Investment[]>([]);
-  const [pendingTxns, setPendingTxns] = useState<PendingTxn[]>([]);
-  const [companyAssets, setCompanyAssets] = useState<CompanyAsset[]>([]);
-  const [topAssets, setTopAssets] = useState<CoinAsset[]>([]);
-  const [live, setLive] = useState<Record<string, string>>({});
-  const [inrRate, setInrRate] = useState(83);
-  const [roiHistory, setRoiHistory] = useState<ReturnRow[]>([]);
-  const [sponsorIncome, setSponsorIncome] = useState<SponsorIncomeRow[]>([]);
-  const [partnerIncome, setPartnerIncome] = useState<PartnerIncomeRow[]>([]);
-  const [unread, setUnread] = useState(0);
-  const [banner, setBanner] = useState<string | null>(null);
-  const [maintenance, setMaintenance] = useState(false);
+  const [inv, setInv] = useState<any>(null);
+  const [pending, setPending] = useState(0);
+  const [income, setIncome] = useState({ ref: 0, level: 0, roi: 0 });
+  const [trading, setTrading] = useState<any[]>([]);
+  const [prices, setPrices] = useState<Record<string, { price: number; change: number }>>({});
+  const [offers, setOffers] = useState<any[]>([]);
+  const u = typeof window !== "undefined" ? getUser() : null;
 
   useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { nav({ to: "/login" }); return; }
-      const { data: p } = await supabase.from("profiles").select("id, had_id, full_name").eq("id", user.id).maybeSingle();
-      setProfile(p as any);
-      const [{ data: i }, { data: ca }, { data: settings }, { data: tx }, { data: returns }, { data: sponsor }, { data: partner }] = await Promise.all([
-        supabase.from("investments").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
-        supabase.from("trading_assets_public").select("*").eq("status", "active"),
-        supabase.from("app_settings").select("key, value"),
-        supabase.from("transactions").select("id, amount, status, payment_method, plan_name, created_at, utr_number").eq("user_id", user.id).in("status", ["pending", "verified"]).order("created_at", { ascending: false }).limit(10),
-        supabase.from("return_payments").select("amount").eq("user_id", user.id),
-        supabase.from("sponsor_income").select("sponsor_amount").eq("earner_user_id", user.id),
-        supabase.from("partner_income").select("total_bonus").eq("earner_user_id", user.id),
-      ]);
-      setInvs((i as any) || []);
-      setCompanyAssets((ca as any) || []);
-      setPendingTxns(((tx as any) || []).filter((row: any) => row.status === "pending"));
-      setRoiHistory((returns as ReturnRow[]) || []);
-      setSponsorIncome((sponsor as SponsorIncomeRow[]) || []);
-      setPartnerIncome((partner as PartnerIncomeRow[]) || []);
-      const map = new Map((settings || []).map((s: any) => [s.key, s.value]));
-      setBanner(map.get("announcement_banner") || null);
-      setMaintenance(map.get("maintenance_mode") === "true");
-      if (p) {
-        const { count } = await supabase.from("notifications").select("id", { count: "exact", head: true })
-          .or(`had_id.eq.${(p as any).had_id},had_id.eq.ALL`).is("read_at", null);
-        setUnread(count || 0);
-      }
-    })();
-    getInrRate().then(setInrRate);
-    getTopAssets(10).then(setTopAssets).catch(() => {});
-  }, [nav]);
-
-  useEffect(() => {
-    const ids = Array.from(new Set([
-      ...companyAssets.map((a) => a.coincap_id).filter(Boolean) as string[],
-      ...topAssets.map((a) => a.id),
-    ]));
-    if (ids.length === 0) return;
-    return subscribeRealTimePrice(ids, (p) => setLive((prev) => ({ ...prev, ...p })));
-  }, [companyAssets, topAssets]);
-
-  useEffect(() => {
+    if (!u) return;
+    async function load() {
+      const { data: invs } = await supabase.from("investments").select("*").eq("had_id", u!.had_id);
+      const list = invs ?? [];
+      const monthly = list.reduce((sum, x: any) => {
+        if (x.is_special && x.monthly_roi) return sum + Number(x.monthly_roi);
+        return sum + (Number(x.amount_invested) * Number(x.plan_rate)) / 100;
+      }, 0);
+      const cap = list.reduce((sum, x: any) => sum + (x.is_special && x.total_return ? Number(x.total_return) : Number(x.amount_invested) * 2), 0);
+      const agg = list.reduce(
+        (a, x: any) => ({
+          amount_invested: a.amount_invested + Number(x.amount_invested),
+          total_income_received: a.total_income_received + Number(x.total_income_received),
+        }),
+        { amount_invested: 0, total_income_received: 0 }
+      );
+      const planLabel =
+        list.length === 0 ? "—" :
+        list.length === 1 ? `${list[0].plan_name} (${Number(list[0].plan_rate)}%)` :
+        "Multiple Active Plans";
+      setInv({ ...agg, plan_label: planLabel, monthly_total: monthly, cap_total: cap, items: list });
+      const { data: pend } = await supabase.from("transactions").select("amount").eq("had_id", u!.had_id).eq("status", "pending");
+      setPending((pend ?? []).reduce((a, t) => a + Number(t.amount), 0));
+      const { data: si } = await supabase.from("sponsor_income").select("type, income_amount").eq("earner_had_id", u!.had_id).eq("status", "paid");
+      const ic = { ref: 0, level: 0, roi: 0 };
+      (si ?? []).forEach((s: any) => {
+        if (s.type === "referral") ic.ref += Number(s.income_amount);
+        else if (s.type === "level") ic.level += Number(s.income_amount);
+        else if (s.type === "roi") ic.roi += Number(s.income_amount);
+      });
+      setIncome(ic);
+    }
+    load();
     const ch = supabase
-      .channel("dashboard_trading_assets")
-      .on("postgres_changes", { event: "*", schema: "public", table: "trading_assets" }, async () => {
-        const { data } = await supabase.from("trading_assets_public").select("*").eq("status", "active");
-        setCompanyAssets((data as any) || []);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(ch);
-    };
-  }, []);
-
-  // Realtime: investments + notifications
-  useEffect(() => {
-    if (!profile) return;
-    const ch = supabase
-      .channel(`dash_${profile.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "investments", filter: `user_id=eq.${profile.id}` },
-        async () => {
-          const { data } = await supabase.from("investments").select("*").eq("user_id", profile.id).order("created_at", { ascending: false });
-          setInvs((data as any) || []);
-        })
-      .on("postgres_changes", { event: "*", schema: "public", table: "transactions", filter: `user_id=eq.${profile.id}` },
-        async () => {
-          const { data } = await supabase.from("transactions").select("id, amount, status, payment_method, plan_name, created_at, utr_number").eq("user_id", profile.id).in("status", ["pending", "verified"]).order("created_at", { ascending: false }).limit(10);
-          setPendingTxns(((data as any) || []).filter((row: any) => row.status === "pending"));
-        })
-      .on("postgres_changes", { event: "*", schema: "public", table: "return_payments", filter: `user_id=eq.${profile.id}` },
-        async () => {
-          const { data } = await supabase.from("return_payments").select("amount").eq("user_id", profile.id);
-          setRoiHistory((data as ReturnRow[]) || []);
-        })
-      .on("postgres_changes", { event: "*", schema: "public", table: "sponsor_income", filter: `earner_user_id=eq.${profile.id}` },
-        async () => {
-          const { data } = await supabase.from("sponsor_income").select("sponsor_amount").eq("earner_user_id", profile.id);
-          setSponsorIncome((data as SponsorIncomeRow[]) || []);
-        })
-      .on("postgres_changes", { event: "*", schema: "public", table: "partner_income", filter: `earner_user_id=eq.${profile.id}` },
-        async () => {
-          const { data } = await supabase.from("partner_income").select("total_bonus").eq("earner_user_id", profile.id);
-          setPartnerIncome((data as PartnerIncomeRow[]) || []);
-        })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" },
-        (payload) => {
-          const n = payload.new as any;
-          if (n.had_id === profile.had_id || n.had_id === "ALL") setUnread((c) => c + 1);
-        })
+      .channel("dash-" + u.had_id)
+      .on("postgres_changes", { event: "*", schema: "public", table: "investments", filter: `had_id=eq.${u.had_id}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "transactions", filter: `had_id=eq.${u.had_id}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sponsor_income", filter: `earner_had_id=eq.${u.had_id}` }, load)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [profile]);
+  }, [u?.had_id]);
 
-  const totals = useMemo(() => {
-    const invested = invs.reduce((a, b) => a + Number(b.amount_invested), 0);
-    const received = invs.reduce((a, b) => a + Number(b.amount_received), 0);
-    const target = invested * 2;
-    const remaining = Math.max(target - received, 0);
-    const pct = target > 0 ? Math.min(100, (received / target) * 100) : 0;
-    return { invested, received, target, remaining, pct };
-  }, [invs]);
-  const pendingTotal = useMemo(() => pendingTxns.reduce((sum, txn) => sum + Number(txn.amount), 0), [pendingTxns]);
-  const activeInvestment = invs.find((i) => i.status === "active") || invs[0] || null;
-  const activePlan = activeInvestment?.plan_name ?? "—";
-  const roiPct = Number(activeInvestment?.plan_rate || 0);
-  const monthlyRoi = activeInvestment ? Number(activeInvestment.amount_invested) * roiPct / 100 : 0;
-  const roiTotal = roiHistory.reduce((sum, row) => sum + Number(row.amount || 0), 0);
-  const sponsorTotal = sponsorIncome.reduce((sum, row) => sum + Number(row.sponsor_amount || 0), 0);
-  const partnerTotal = partnerIncome.reduce((sum, row) => sum + Number(row.total_bonus || 0), 0);
-  const nextPayout = useMemo(() => {
-    const now = new Date();
-    const next = new Date(now.getFullYear(), now.getMonth(), 10);
-    if (now.getDate() > 10) next.setMonth(next.getMonth() + 1);
-    return next.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  // Admin-pushed trading assets
+  useEffect(() => {
+    async function loadAssets() {
+      const { data } = await supabase.from("trading_assets").select("*").eq("status", "active").order("created_at", { ascending: false });
+      setTrading(data ?? []);
+    }
+    loadAssets();
+    const ch = supabase.channel("dash-trading").on("postgres_changes", { event: "*", schema: "public", table: "trading_assets" }, loadAssets).subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
-  if (maintenance) {
-    return (
-      <div className="min-h-screen bg-navy text-white grid place-items-center text-center p-8">
-        <div>
-          <p className="text-6xl">🔧</p>
-          <h1 className="font-serif text-3xl mt-4">App maintenance chal rahi hai.</h1>
-          <p className="text-white/60 mt-2">Thodi der mein wapas aayein.</p>
-        </div>
-      </div>
-    );
-  }
+  // Binance prices for pushed assets
+  useEffect(() => {
+    if (trading.length === 0) return;
+    let cancelled = false;
+    async function loadPrices() {
+      try {
+        const symbols = trading.map((t) => (t.symbol || "").toUpperCase() + "USDT").filter(Boolean);
+        if (!symbols.length) return;
+        const q = encodeURIComponent(JSON.stringify(symbols));
+        const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${q}`);
+        const json = await res.json();
+        if (cancelled || !Array.isArray(json)) return;
+        const map: Record<string, { price: number; change: number }> = {};
+        json.forEach((d: any) => {
+          const sym = String(d.symbol).replace("USDT", "");
+          map[sym] = { price: Number(d.lastPrice), change: Number(d.priceChangePercent) };
+        });
+        setPrices(map);
+      } catch {}
+    }
+    loadPrices();
+    const t = setInterval(loadPrices, 30000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, [trading]);
+
+  // Published special offers (animated banner)
+  useEffect(() => {
+    async function loadOffers() {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data } = await (supabase as any)
+        .from("special_offers")
+        .select("*")
+        .eq("published", true)
+        .neq("status", "expired")
+        .or(`end_date.is.null,end_date.gte.${today}`)
+        .order("created_at", { ascending: false })
+        .limit(3);
+      setOffers(data ?? []);
+    }
+    loadOffers();
+    const ch = supabase.channel("dash-offers").on("postgres_changes", { event: "*", schema: "public", table: "special_offers" }, loadOffers).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  const target2x = inv?.cap_total ?? (inv?.amount_invested ?? 0) * 2;
+  const totalEarned = (income.roi || 0) + (income.ref || 0) + (income.level || 0);
+  const remaining = Math.max(0, target2x - totalEarned);
+  const progress = target2x > 0 ? (totalEarned / target2x) * 100 : 0;
+  const monthlyRoi = inv?.monthly_total ?? 0;
 
   return (
-    <div className="min-h-screen bg-navy text-white">
-      <header className="border-b border-gold/20 bg-navy-light/40">
-        <div className="mx-auto max-w-6xl px-6 h-16 flex items-center justify-between gap-4">
-          <Link to="/" className="font-serif text-xl text-gold">H.A.D.</Link>
-          <nav className="hidden md:flex items-center gap-6 text-sm text-white/70">
-            <Link to="/dashboard" className="text-gold">Dashboard</Link>
-            <Link to="/markets" className="hover:text-gold">Markets</Link>
-            <Link to="/pay" className="hover:text-gold">Pay</Link>
-            <Link to="/referral" className="hover:text-gold">Referral</Link>
-            <Link to="/profile" className="hover:text-gold">Profile</Link>
-          </nav>
-          <div className="flex items-center gap-4">
-            <Link to="/notifications" className="relative text-white/70 hover:text-gold">
-              <Bell className="h-5 w-5" />
-              {unread > 0 && <span className="absolute -top-1 -right-1 bg-gold text-navy text-[10px] rounded-full h-4 min-w-4 px-1 flex items-center justify-center">{unread}</span>}
-            </Link>
-            {profile && <span className="text-sm text-white/70 hidden sm:block">{profile.had_id}</span>}
-            <button onClick={async () => { await supabase.auth.signOut(); nav({ to: "/" }); }} className="text-sm text-white/70 hover:text-gold">Logout</button>
-          </div>
-        </div>
-      </header>
-
-      {/* Live market ticker — Binance WebSocket with CoinCap fallback */}
-      <LiveTicker />
-
-
-      {banner && (
-        <div className="bg-amber-400/15 border-b border-amber-400/30 text-amber-200 px-6 py-2 text-sm text-center">{banner}</div>
-      )}
-
-      <main className="mx-auto max-w-6xl px-6 py-8 space-y-8">
+    <UserShell>
+      <div className="space-y-6">
         <div>
-          <h1 className="font-serif text-4xl">Hello {profile?.full_name?.split(" ")[0] || "investor"} 👋</h1>
-          <p className="text-white/60 mt-1">HAD ID: <span className="text-gold">{profile?.had_id || "—"}</span> · Plan: {String(activePlan).toUpperCase()} · Next payout: 10th</p>
+          <h1 className="text-2xl font-bold">Hello {u?.name} 👋</h1>
+          <p className="text-sm text-muted-foreground">HAD ID: {u?.had_id} · Plan: {inv?.plan_label ?? "—"} · Next payout: 10th</p>
         </div>
 
-        {/* Investment summary */}
-        <section className="rounded-xl border border-gold/30 bg-navy-light/40 p-6">
-          <p className="text-xs tracking-[0.3em] text-gold uppercase">Investment Summary</p>
-          <div className="mt-4 grid sm:grid-cols-2 xl:grid-cols-5 gap-4">
-            <Metric label="Investment Amount" value={`₹${totals.invested.toLocaleString("en-IN")}`} />
-            <Metric label="Current Plan" value={String(activePlan).toUpperCase()} />
-            <Metric label="ROI %" value={`${roiPct}%`} />
-            <Metric label="Monthly ROI" value={`₹${Math.round(monthlyRoi).toLocaleString("en-IN")}`} />
-            <Metric label="Next payout" value={nextPayout} accent />
-          </div>
-          <div className="mt-4 grid sm:grid-cols-2 xl:grid-cols-5 gap-4">
-            <Metric label="Referral Income" value={`₹${Math.round(sponsorTotal).toLocaleString("en-IN")}`} />
-            <Metric label="Level Income" value={`₹${Math.round(partnerTotal).toLocaleString("en-IN")}`} />
-            <Metric label="Total Received" value={`₹${Math.round(totals.received).toLocaleString("en-IN")}`} />
-            <Metric label="2X Target" value={`₹${Math.round(totals.target).toLocaleString("en-IN")}`} />
-            <Metric label="Remaining" value={`₹${Math.round(totals.remaining).toLocaleString("en-IN")}`} accent />
-          </div>
-          <div className="mt-6">
-            <div className="flex justify-between text-xs text-white/60 mb-1"><span>2X progress</span><span>{totals.pct.toFixed(1)}%</span></div>
-            <div className="h-3 rounded-full bg-white/10 overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-gold to-amber-300" style={{ width: `${totals.pct}%` }} />
-            </div>
-          </div>
-          <div className="mt-5 rounded-lg border border-amber-400/20 bg-amber-400/5 p-4">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div>
-                <p className="text-xs uppercase tracking-widest text-amber-200/80">Pending approval</p>
-                <p className="mt-1 font-serif text-2xl text-amber-200">₹{pendingTotal.toLocaleString("en-IN")}</p>
-              </div>
-              <span className="text-sm text-white/60">{pendingTxns.length} payment{pendingTxns.length === 1 ? "" : "s"} waiting for admin verification</span>
-            </div>
-            {pendingTxns.length > 0 && (
-              <div className="mt-3 space-y-2">
-                {pendingTxns.slice(0, 3).map((txn) => (
-                  <div key={txn.id} className="flex items-center justify-between gap-3 rounded-md bg-navy/40 px-3 py-2 text-sm">
-                    <div>
-                      <div className="text-white">₹{Number(txn.amount).toLocaleString("en-IN")} <span className="text-white/50">· {(txn.plan_name || "starter").toUpperCase()}</span></div>
-                      <div className="text-xs text-white/50">{txn.payment_method || "Payment"} · {new Date(txn.created_at).toLocaleString()} {txn.utr_number ? `· UTR ${txn.utr_number}` : ""}</div>
-                    </div>
-                    <span className="rounded bg-amber-400/15 px-2 py-1 text-xs text-amber-200">Pending</span>
+        {offers.length > 0 && (
+          <div className="space-y-3">
+            {offers.map((o) => (
+              <Link
+                key={o.id}
+                to="/special-offers"
+                className="block relative overflow-hidden rounded-xl border-2 border-[var(--gold)] bg-gradient-to-r from-[var(--gold)]/20 via-card to-[var(--gold)]/20 p-5 animate-fade-in hover:scale-[1.01] transition-transform"
+              >
+                <div className="absolute inset-0 bg-[var(--gold)]/5 animate-pulse pointer-events-none" />
+                <div className="relative flex items-center gap-4">
+                  {o.image && <img src={o.image} alt="" className="w-16 h-16 object-cover rounded-lg border border-[var(--gold)]/60" />}
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] bg-[var(--gold)] text-[var(--primary-foreground)] px-2 py-0.5 rounded font-bold uppercase tracking-wider">🔥 Special Offer</span>
+                    <p className="font-bold text-[var(--gold)] mt-1 truncate">{o.title}</p>
+                    {o.description && <p className="text-xs text-muted-foreground line-clamp-2">{o.description}</p>}
                   </div>
-                ))}
-              </div>
-            )}
+                  <span className="text-[var(--gold)] text-sm font-semibold whitespace-nowrap">View →</span>
+                </div>
+              </Link>
+            ))}
           </div>
-          <div className="mt-4 text-xs text-white/50">ROI credited so far: ₹{Math.round(roiTotal).toLocaleString("en-IN")} · Referral + level income are also counted in the package journey.</div>
-        </section>
+        )}
 
-        {/* Company portfolio feed */}
-        <section>
-          <div className="flex items-center justify-between">
-            <h2 className="font-serif text-2xl">Company Trading Feed</h2>
-            <Link to="/markets" className="text-sm text-gold hover:underline">View Markets →</Link>
+        <div className="bg-card border border-[var(--gold)]/40 rounded-lg p-6">
+          <h2 className="text-[var(--gold)] font-semibold mb-4">Investment Summary</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <Stat label="Investment" value={formatINR(inv?.amount_invested)} />
+            <Stat label="Plan" value={inv?.plan_label ?? "—"} />
+            <Stat label="Monthly ROI" value={formatINR(monthlyRoi)} />
+            <Stat label="Next Payout" value="10th" />
+            <Stat label="Referral Income" value={formatINR(income.ref)} />
+            <Stat label="ROI Income" value={formatINR(income.roi)} />
+            <Stat label="Level Income" value={formatINR(income.level)} />
+            <Stat label="Total Received" value={formatINR(totalEarned)} />
+            <Stat label="2X Target" value={formatINR(target2x)} highlight />
           </div>
-          {companyAssets.length === 0 ? (
-            <p className="text-white/60 text-sm mt-3">No active company holdings right now.</p>
-          ) : (
-            <div className="mt-4 grid md:grid-cols-2 gap-4">
-              {companyAssets.map((a) => {
-                const cur = a.use_manual_price && a.custom_current_price
-                  ? Number(a.custom_current_price)
-                  : a.coincap_id && live[a.coincap_id] ? Number(live[a.coincap_id])
-                  : Number(a.current_price);
-                const pnl = a.entry_price > 0 ? ((cur - a.entry_price) / a.entry_price) * 100 : 0;
-                return (
-                  <div key={a.id} className="rounded-xl border border-gold/20 bg-navy-light/30 p-5">
-                    <div className="flex items-center justify-between">
-                      <p className="font-serif text-xl">{a.asset_name} <span className="text-gold/70">({a.symbol})</span></p>
-                      <span className={`text-sm tabular-nums ${pnl>=0?"text-emerald-400":"text-red-400"}`}>{fmtPct(pnl)}</span>
+          <div className="mt-4">
+            <div className="flex justify-between text-xs text-muted-foreground"><span>2X Progress</span><span>{progress.toFixed(1)}%</span></div>
+            <div className="h-2 bg-secondary rounded mt-1 overflow-hidden">
+              <div className="h-full bg-[var(--gold)]" style={{ width: `${Math.min(100, progress)}%` }} />
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">Remaining: {formatINR(remaining)}</p>
+          </div>
+          {inv?.items && inv.items.length > 1 && (
+            <div className="mt-4 border-t border-border pt-3">
+              <p className="text-xs uppercase text-muted-foreground tracking-wider mb-2">Active Plans Breakdown</p>
+              <div className="space-y-2">
+                {inv.items.map((it: any) => {
+                  const m = it.is_special && it.monthly_roi ? Number(it.monthly_roi) : (Number(it.amount_invested) * Number(it.plan_rate)) / 100;
+                  return (
+                    <div key={it.id} className="flex flex-wrap items-center justify-between gap-2 text-xs bg-secondary/40 rounded p-2">
+                      <span className="font-semibold">{it.plan_name} <span className="text-[var(--gold)]">({Number(it.plan_rate)}%)</span></span>
+                      <span>Invested: {formatINR(it.amount_invested)}</span>
+                      <span>Monthly: {formatINR(m)}</span>
                     </div>
-                    <p className="text-sm text-white/70 mt-1 tabular-nums">{fmtUsd(cur)} <span className="text-white/50">/ {fmtInr(cur, inrRate)}</span></p>
-                    <p className="text-xs text-white/50 mt-1">Allocation {a.allocation_percent}% · Risk {a.risk_level}</p>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {pending > 0 && (
+          <div className="bg-[var(--warning)]/10 border border-[var(--warning)]/40 rounded-lg p-4">
+            <p className="text-xs text-[var(--warning)] font-semibold">PENDING APPROVAL</p>
+            <p className="text-xl font-bold mt-1">{formatINR(pending)}</p>
+            <p className="text-xs text-muted-foreground">Waiting for admin verification</p>
+          </div>
+        )}
+
+        <div className="bg-card border border-[var(--gold)]/40 rounded-lg p-5">
+          <h2 className="text-[var(--gold)] font-semibold mb-3">📈 Admin Active Trading</h2>
+          {trading.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Admin abhi koi trade active nahi kar raha. Jaisi hi trading shuru hogi, yahan dikh jayegi.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {trading.map((a) => {
+                const live = prices[(a.symbol || "").toUpperCase()];
+                const entry = Number(a.entry_price) || 0;
+                const pnl = live && entry ? ((live.price - entry) / entry) * 100 : 0;
+                return (
+                  <div key={a.id} className="border border-border rounded p-3 bg-secondary/30">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold">{a.asset_name} <span className="text-xs text-muted-foreground">{a.symbol}/USDT</span></p>
+                        <p className="text-xs text-muted-foreground">Risk: {a.risk_level} · Alloc: {a.allocation_percent}%</p>
+                      </div>
+                      <span className="text-xs bg-[var(--success)]/20 text-[var(--success)] px-2 py-1 rounded">{a.status}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+                      <div><p className="text-muted-foreground">Entry</p><p className="font-semibold">${entry.toFixed(2)}</p></div>
+                      <div><p className="text-muted-foreground">Current</p><p className="font-semibold">{live ? `$${live.price.toFixed(2)}` : "—"}</p></div>
+                      <div><p className="text-muted-foreground">P&L</p><p className={`font-semibold ${pnl >= 0 ? "text-[var(--success)]" : "text-destructive"}`}>{pnl ? `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}%` : "—"}</p></div>
+                    </div>
                   </div>
                 );
               })}
             </div>
           )}
-        </section>
+        </div>
 
-        {/* Quick actions */}
-        <section className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <ActionCard to="/pay" title="Make payment" desc="Send investment via UPI or crypto." />
-          <ActionCard to="/income" title="My Income" desc="Sponsor & partner bonuses." />
-          <ActionCard to="/markets" title="Browse markets" desc="Live crypto and company holdings." />
-          <ActionCard to="/referral" title="Refer & earn" desc="5% sponsor income on each referral." />
-        </section>
-      </main>
-    </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { to: "/pay", t: "Make payment", d: "UPI or crypto" },
+            { to: "/income", t: "My Income", d: "Sponsor & partner bonuses" },
+            { to: "/referral", t: "Refer & earn", d: "5% sponsor income" },
+            { to: "/profile", t: "My Profile", d: "Wallets & payout info" },
+          ].map((q) => (
+            <Link key={q.to} to={q.to} className="bg-card border border-border rounded-lg p-4 hover:border-[var(--gold)] transition">
+              <p className="font-semibold text-sm">{q.t}</p>
+              <p className="text-xs text-muted-foreground mt-1">{q.d}</p>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </UserShell>
   );
 }
 
-function Metric({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div>
-      <div className="text-[10px] uppercase tracking-widest text-white/50">{label}</div>
-      <div className={`mt-1 font-serif text-2xl tabular-nums ${accent ? "text-gold" : "text-white"}`}>{value}</div>
+    <div className={`bg-secondary/50 rounded p-3 ${highlight ? "border border-[var(--gold)]/40" : ""}`}>
+      <p className="text-[10px] uppercase text-muted-foreground tracking-wider">{label}</p>
+      <p className={`font-semibold mt-1 ${highlight ? "text-[var(--gold)]" : ""}`}>{value}</p>
     </div>
-  );
-}
-function ActionCard({ to, title, desc }: { to: string; title: string; desc: string }) {
-  return (
-    <Link to={to} className="block rounded-xl border border-gold/20 bg-navy-light/30 p-5 hover:border-gold/60 transition">
-      <p className="font-serif text-lg text-gold">{title}</p>
-      <p className="text-sm text-white/60 mt-1">{desc}</p>
-    </Link>
   );
 }

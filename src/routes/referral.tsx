@@ -1,6 +1,9 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { UserShell } from "@/components/UserShell";
 import { supabase } from "@/integrations/supabase/client";
+import { getUser } from "@/lib/session";
+import { formatINR } from "@/lib/format";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/referral")({
@@ -9,77 +12,36 @@ export const Route = createFileRoute("/referral")({
 });
 
 function Referral() {
-  const nav = useNavigate();
-  const [hadId, setHadId] = useState<string>("");
-  const [count, setCount] = useState(0);
-  const [sponsorTotal, setSponsorTotal] = useState(0);
-  const [sponsorCount, setSponsorCount] = useState(0);
-
+  const u = typeof window !== "undefined" ? getUser() : null;
+  const [referred, setReferred] = useState(0);
+  const [team, setTeam] = useState(0);
+  const [income, setIncome] = useState(0);
+  const url = typeof window !== "undefined" ? `${window.location.origin}/register?ref=${u?.had_id}` : "";
   useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { nav({ to: "/login" }); return; }
-      const { data: p } = await supabase.from("profiles").select("had_id").eq("id", user.id).maybeSingle();
-      const id = (p as any)?.had_id || "";
-      setHadId(id);
-      if (id) {
-        const [{ count: c }, { data: si }] = await Promise.all([
-          supabase.from("profiles").select("id", { count: "exact", head: true }).eq("referred_by", id),
-          supabase.from("sponsor_income").select("sponsor_amount").eq("earner_user_id", user.id),
-        ]);
-        setCount(c || 0);
-        const rows = (si as any[]) || [];
-        setSponsorCount(rows.length);
-        setSponsorTotal(rows.reduce((a, b) => a + Number(b.sponsor_amount), 0));
-      }
-    })();
-  }, [nav]);
-
-  const link = typeof window !== "undefined" && hadId ? `${window.location.origin}/register?ref=${hadId}` : "";
-  const shareText = `${hadId} code se register karein — H.A.D. Asset Management. ${link}`;
-
+    if (!u) return;
+    supabase.from("users").select("*", { count: "exact", head: true }).eq("referred_by", u.had_id).then(({ count }) => setReferred(count ?? 0));
+    (supabase.rpc as any)("get_team_count", { root_had_id: u.had_id }).then(({ data }: any) => setTeam(Number(data) || 0));
+    supabase.from("sponsor_income").select("income_amount").eq("earner_had_id", u.had_id).eq("type", "referral").eq("status", "paid").then(({ data }) => setIncome((data ?? []).reduce((a, b) => a + Number(b.income_amount), 0)));
+  }, [u?.had_id]);
   return (
-    <div className="min-h-screen bg-navy text-white">
-      <header className="border-b border-gold/20 bg-navy-light/40">
-        <div className="mx-auto max-w-3xl px-6 h-16 flex items-center justify-between">
-          <Link to="/dashboard" className="text-sm text-white/70 hover:text-gold">← Dashboard</Link>
-          <Link to="/" className="font-serif text-xl text-gold">H.A.D.</Link><span />
+    <UserShell>
+      <h1 className="text-2xl font-bold mb-2">Apna HAD ID share karein</h1>
+      <p className="text-sm text-muted-foreground mb-6">Aapka HAD ID hi aapka referral code hai.</p>
+      <div className="bg-card border border-[var(--gold)]/40 rounded-lg p-6">
+        <p className="text-3xl font-bold text-[var(--gold)] tracking-widest text-center">{u?.had_id}</p>
+        <p className="text-xs text-muted-foreground text-center mt-2 break-all">{url}</p>
+        <div className="flex gap-2 justify-center mt-4">
+          <button onClick={() => { navigator.clipboard.writeText(u!.had_id); toast.success("Copied"); }} className="bg-secondary px-3 py-1 rounded text-xs">Copy HAD ID</button>
+          <button onClick={() => { navigator.clipboard.writeText(url); toast.success("Copied"); }} className="bg-secondary px-3 py-1 rounded text-xs">Copy link</button>
         </div>
-      </header>
-      <main className="mx-auto max-w-3xl px-6 py-10 space-y-6">
-        <div>
-          <p className="text-xs tracking-[0.3em] text-gold uppercase">Referral</p>
-          <h1 className="font-serif text-3xl mt-1">Apna HAD ID share karein</h1>
-          <p className="text-white/60 text-sm mt-1">Aapka HAD ID hi aapka referral code hai.</p>
-        </div>
-        <div className="rounded-xl border-2 border-gold/40 bg-navy-light/40 p-8 text-center">
-          <p className="text-white/60 text-sm">Your referral code</p>
-          <p className="font-mono text-5xl text-gold mt-2 tracking-[0.3em]">{hadId || "—"}</p>
-          <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-            <button onClick={() => { navigator.clipboard.writeText(hadId); toast.success("HAD ID copied"); }} className="px-5 py-2 bg-gold text-navy rounded-md text-sm font-medium">Copy HAD ID</button>
-            <button onClick={() => { navigator.clipboard.writeText(link); toast.success("Link copied"); }} className="px-5 py-2 border border-gold/40 rounded-md text-sm">Copy invite link</button>
-            <button onClick={() => { navigator.clipboard.writeText(shareText); toast.success("Share text copied"); }} className="px-5 py-2 border border-gold/40 rounded-md text-sm">Copy share text</button>
-          </div>
-          <p className="text-xs text-white/50 mt-4 break-all">{link}</p>
-        </div>
-        <div className="grid sm:grid-cols-3 gap-4">
-          <div className="rounded-xl border border-gold/20 bg-navy-light/30 p-5">
-            <p className="text-white/70 text-xs uppercase tracking-widest">Total Referred</p>
-            <p className="font-serif text-3xl text-gold mt-1">{count}</p>
-          </div>
-          <div className="rounded-xl border border-gold/20 bg-navy-light/30 p-5">
-            <p className="text-white/70 text-xs uppercase tracking-widest">Sponsor Income</p>
-            <p className="font-serif text-3xl text-gold mt-1">₹{sponsorTotal.toLocaleString("en-IN")}</p>
-            <p className="text-xs text-white/50 mt-1">from {sponsorCount} verified payment(s)</p>
-          </div>
-          <div className={`rounded-xl border p-5 ${count >= 2 ? "border-emerald-400/40 bg-emerald-400/5" : "border-amber-400/40 bg-amber-400/5"}`}>
-            <p className="text-white/70 text-xs uppercase tracking-widest">Partner Status</p>
-            <p className="font-serif text-2xl text-gold mt-1">{count >= 2 ? "Active" : `Need ${2 - count} more`}</p>
-            <p className="text-xs text-white/50 mt-1">2 directs → 10% ROI bonus monthly</p>
-          </div>
-        </div>
-        <Link to="/income" className="block text-sm text-gold hover:underline">View full income history →</Link>
-      </main>
-    </div>
+      </div>
+      <div className="grid md:grid-cols-4 gap-3 mt-6">
+        <div className="bg-card border border-border rounded p-4"><p className="text-xs text-muted-foreground">TOTAL REFERRED</p><p className="text-2xl font-bold mt-1">{referred}</p></div>
+        <div className="bg-card border border-[var(--gold)]/40 rounded p-4"><p className="text-xs text-muted-foreground">TOTAL TEAM (FLAT)</p><p className="text-2xl font-bold mt-1 text-[var(--gold)]">{team}</p></div>
+        <div className="bg-card border border-border rounded p-4"><p className="text-xs text-muted-foreground">SPONSOR INCOME</p><p className="text-2xl font-bold mt-1 text-[var(--gold)]">{formatINR(income)}</p></div>
+        <div className="bg-card border border-border rounded p-4"><p className="text-xs text-muted-foreground">PARTNER STATUS</p><p className="text-sm mt-1">{referred >= 2 ? "Active ✅" : `Need ${2 - referred} more`}</p></div>
+      </div>
+      <p className="text-xs text-muted-foreground mt-4">Aapka full network flat structure mein dikhata hai — direct + indirect, sab ek hi team mein. Income calculation sponsor chain ke according hoti hai (5% one-time on invest + 10% on monthly ROI when you have 2+ direct).</p>
+    </UserShell>
   );
 }

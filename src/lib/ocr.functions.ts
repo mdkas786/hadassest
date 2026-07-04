@@ -1,56 +1,70 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-const OcrInput = z.object({
-  imageBase64: z.string().min(10).max(20_000_000),
-  mimeType: z.string().min(3).max(64),
-});
-
-export const extractPaymentInfo = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => OcrInput.parse(input))
+// Extracts payment fields from an uploaded screenshot using the Lovable AI Gateway (Gemini vision).
+export const extractPaymentFromImage = createServerFn({ method: "POST" })
+  .inputValidator((data: { imageBase64: string; mimeType?: string }) =>
+    z.object({ imageBase64: z.string().min(50), mimeType: z.string().optional() }).parse(data),
+  )
   .handler(async ({ data }) => {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("AI not configured");
-
-    const prompt = `You are an OCR extractor for Indian payment screenshots (UPI, GPay, PhonePe, Paytm, bank apps, crypto wallets). Extract the transaction info from this image and return ONLY a JSON object with this exact shape (no markdown, no commentary):
-{"amount": number_or_null, "txn_ref": string_or_null, "method": "upi"|"btc"|"eth"|"usdt"|null, "status": "success"|"pending"|"failed"|null}
-Use null when a field is not clearly visible.`;
-
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: `data:${data.mimeType};base64,${data.imageBase64}` } },
-            ],
-          },
-        ],
-      }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`AI error ${res.status}: ${text.slice(0, 200)}`);
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) {
+      return { ok: false, error: "Lovable AI key missing on server" } as const;
     }
-    const json = await res.json();
-    const content: string = json.choices?.[0]?.message?.content ?? "";
-    const cleaned = content.replace(/```json|```/g, "").trim();
-    let parsed: { amount: number | null; txn_ref: string | null; method: string | null; status: string | null };
+    const dataUrl = `data:${data.mimeType || "image/png"};base64,${data.imageBase64}`;
+    const body = {
+      model: "google/gemini-2.5-flash",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an OCR assistant for Indian payment app screenshots (PhonePe, GPay, Paytm, BHIM, bank apps, USDT crypto explorers). Read the image and return ONLY a strict JSON object with these keys: utr (string transaction/UTR/UPI ref number or empty), amount (number, INR or USD as a plain number with no currency symbol), date (string YYYY-MM-DD if visible else empty), time (string HH:MM if visible else empty), upi_id (the receiver UPI id if visible else empty), method (UPI | USDT TRC20 | USDT BEP20 | BTC | ETH | OTHER), app (PhonePe | GPay | Paytm | BHIM | Bank | Crypto | Other). Do not include any text outside the JSON.",
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Extract the payment details from this screenshot." },
+            { type: "image_url", image_url: { url: dataUrl } },
+          ],
+        },
+      ],
+    };
     try {
-      parsed = JSON.parse(cleaned);
-    } catch {
-      const m = cleaned.match(/\{[\s\S]*\}/);
-      parsed = m ? JSON.parse(m[0]) : { amount: null, txn_ref: null, method: null, status: null };
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        return { ok: false, error: `AI gateway error ${res.status}: ${text.slice(0, 200)}` } as const;
+      }
+      const json = (await res.json()) as any;
+      const raw: string = json?.choices?.[0]?.message?.content ?? "";
+      // strip code fences if present
+      const cleaned = raw.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+      let parsed: any = {};
+      try {
+        parsed = JSON.parse(cleaned);
+      } catch {
+        const m = cleaned.match(/\{[\s\S]*\}/);
+        if (m) {
+          try {
+            parsed = JSON.parse(m[0]);
+          } catch {}
+        }
+      }
+      return {
+        ok: true,
+        utr: String(parsed.utr ?? ""),
+        amount: Number(parsed.amount) || 0,
+        date: String(parsed.date ?? ""),
+        time: String(parsed.time ?? ""),
+        upi_id: String(parsed.upi_id ?? ""),
+        method: String(parsed.method ?? ""),
+        app: String(parsed.app ?? ""),
+      } as const;
+    } catch (e: any) {
+      return { ok: false, error: e?.message ?? "OCR failed" } as const;
     }
-    return parsed;
   });

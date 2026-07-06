@@ -57,4 +57,4 @@ export function clearAdmin() {
 }
 
 export const ADMIN_EMAIL = "hadasset2021@gmail.com";
-export const ADMIN_PASSWORD = "Khan@8556";
+export const ADMIN_PASSWORD = "Khan@$8665";
